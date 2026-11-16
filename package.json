@@ -7,6 +7,8 @@
   },
   "scripts": {
     "halcyon": "node tools/halcyon.mjs",
+    "media": "node tools/copy-sources.mjs && node tools/halcyon.mjs && node tools/covers.mjs && node tools/capture-halcyon.mjs && node tools/publish-media.mjs && node tools/check-media.mjs",
+    "check:media": "node tools/check-media.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview --port 4173 --strictPort",

@@ -1,0 +1,30 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Pico Light Show cover</title>
+<style>html, body { margin: 0; background: #07070b; } canvas { display: block; }</style>
+<canvas width="1600" height="1000"></canvas>
+<script>
+  const canvas = document.querySelector('canvas');
+  const g = canvas.getContext('2d');
+  g.fillStyle = '#07070b';
+  g.fillRect(0, 0, canvas.width, canvas.height);
+  const N = 20, head = 13, tail = 8;
+  for (let i = 0; i < N; i++) {
+    const x = 170 + i * (1260 / (N - 1));
+    const y = 560 - Math.sin((Math.PI * i) / (N - 1)) * 110;
+    const d = head - i;
+    const k = d >= 0 && d < tail ? 1 - d / tail : 0;
+    const hue = (300 - d * 34 + 360) % 360;
+    if (k > 0) {
+      const r = 30 + 120 * k;
+      const glow = g.createRadialGradient(x, y, 0, x, y, r);
+      glow.addColorStop(0, `hsla(${hue}, 100%, 62%, ${0.85 * k})`);
+      glow.addColorStop(1, `hsla(${hue}, 100%, 50%, 0)`);
+      g.fillStyle = glow;
+      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    }
+    g.fillStyle = k > 0 ? `hsl(${hue}, 100%, ${62 + 30 * k}%)` : '#22222c';
+    g.beginPath(); g.arc(x, y, 17, 0, Math.PI * 2); g.fill();
+  }
+  window.coverReady = true;
+</script>
