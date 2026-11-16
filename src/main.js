@@ -8,3 +8,7 @@ import '@fontsource/big-shoulders-display/900';
 import './styles/base.css';
 import './styles/layout.css';
 import './styles/chapter.css';
+import './styles/ui.css';
+import { startApp } from './app.js';
+
+startApp().catch((err) => console.error('[app] failed to start', err));
