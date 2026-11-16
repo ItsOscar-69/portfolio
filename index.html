@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Oscar — Built with Claude Code</title>
+    <meta name="description" content="Projects I've built with Claude Code: websites, hardware and design." />
+    <meta name="theme-color" content="#090909" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script type="module" src="/src/main.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <canvas class="stage" aria-hidden="true"></canvas>
+    <header class="topbar">
+      <a class="topbar__mark" href="#top">Oscar</a>
+      <button class="topbar__projects" type="button" aria-haspopup="true" aria-controls="chapter-menu" aria-expanded="false" data-menu-placement="top">Projects <span aria-hidden="true">▾</span></button>
+      <a class="topbar__cta" href="https://github.com/ItsOscar-69" rel="me noopener">GitHub</a>
+    </header>
+    <main id="main">
+      <section class="scene hero" id="top" data-scene-id="hero" data-world="index" data-world-options="{}">
+        <div class="scene__track">
+          <div class="scene__frame">
+            <!--@hero-poster-->
+            <h1 class="visually-hidden">Oscar — Built with Claude Code</h1>
+            <p class="hero__count"><!--@count--> built with Claude Code, and counting</p>
+            <nav class="hero__links" aria-label="Jump to a project"><!--@hero-links--></nav>
+          </div>
+        </div>
+      </section>
+      <!--@chapters-->
+      <section class="scene next" id="next" data-scene-id="next" data-world="dormant" data-world-options="{}" data-number="<!--@next-number-->" aria-labelledby="next-title">
+        <div class="scene__track">
+          <div class="scene__frame">
+            <!--@next-poster-->
+            <h2 class="next__title" id="next-title">Project <!--@next-number--> is loading…</h2>
+            <p class="next__sub">There's always another one in progress.</p>
+            <p class="next__about">I'm Oscar. I make things with Claude Code: websites, hardware, design.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer class="footer">
+      <span>Oscar · Built with Claude Code</span>
+      <span><a href="https://github.com/ItsOscar-69" rel="me noopener">GitHub</a> · <a href="#top">Back to top ↑</a></span>
+    </footer>
+    <div class="pill" hidden>
+      <button class="pill__button" type="button" aria-haspopup="true" aria-controls="chapter-menu" aria-expanded="false" data-menu-placement="bottom"><span class="pill__label"></span><span aria-hidden="true">☰</span></button>
+    </div>
+    <nav class="menu" id="chapter-menu" aria-label="Chapters" hidden>
+      <ul class="menu__list"><!--@menu--></ul>
+    </nav>
+  </body>
+</html>

@@ -1,4 +1,10 @@
 node_modules/
 dist/
+raw/
+sources.local.json
+privacy.local.json
+test-results/
+playwright-report/
+screens/
 .superpowers/
 *.log
