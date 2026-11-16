@@ -30,7 +30,7 @@ export const projects = [
     status: 'done',
     tags: ['HTML', 'CSS', 'JavaScript'],
     world: 'picture',
-    worldOptions: { cover: 'cover.webp', palette: ['#e6f4f7', '#7fb8c4', '#0b1a1f'] },
+    worldOptions: { cover: 'cover.webp', palette: ['#e6f4f7', '#7fb8c4', '#4fd8ee'], minLuma: 0.22 },
     font: 'michroma',
     headline: 'Perfection, installed.',
     summary: "I wanted a just-for-fun website for a company that doesn't exist: a luxury implant clinic in a rain-soaked future city. Claude Code and I planned it as a design spec first, then built it piece by piece: a boot sequence, decrypting headlines, a stock ticker, implant spec sheets and a consultation form that goes nowhere.\n\nIt all runs from one HTML page with no build step. You can try the real thing below.",
