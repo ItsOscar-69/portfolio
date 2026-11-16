@@ -22,7 +22,7 @@ export function createStage(canvas, { tierOverride = null, onReady = () => {}, o
   renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
   renderer.setClearColor(0x090909, 1);
 
-  const tier = TIER_SETTINGS[tierOverride] ? tierOverride : pickTier({ gpu: gpuName(gl), cores: navigator.hardwareConcurrency || 4, width: window.innerWidth });
+  const tier = Object.hasOwn(TIER_SETTINGS, tierOverride) ? tierOverride : pickTier({ gpu: gpuName(gl), cores: navigator.hardwareConcurrency || 4, width: window.innerWidth });
   const { dprCap } = TIER_SETTINGS[tier];
   const compositor = createCompositor(renderer);
   const entries = new Map(); // scene index -> { status, world, ready }
@@ -98,7 +98,7 @@ export function createStage(canvas, { tierOverride = null, onReady = () => {}, o
     if (B && !guard(state.next, () => B.update({ time, delta, progress: 0, pointer, tier }))) B = null;
     if (A && B) compositor.render(A, B, state.transition);
     else if (A) { renderer.setRenderTarget(null); renderer.render(A.scene, A.camera); }
-    else if (B && state.transition > 0.5) { renderer.setRenderTarget(null); renderer.render(B.scene, B.camera); }
+    else if (B) { renderer.setRenderTarget(null); renderer.render(B.scene, B.camera); }
     else { renderer.setRenderTarget(null); renderer.clear(); }
   }
 
