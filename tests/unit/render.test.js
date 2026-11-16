@@ -83,6 +83,7 @@ describe('renderMedia', () => {
   });
   it('escapes code', () => {
     expect(renderMedia({ type: 'code', src: 'a.py', code: 'if a < b:\n  print("x")' }, p, '/')).toContain('if a &lt; b:');
+    expect(renderMedia({ type: 'code', src: 'a.py', code: 'x' }, p, '/')).toContain('<pre tabindex="0" data-lenis-prevent>');
   });
   it('renders links through the base', () => {
     expect(renderMedia({ type: 'link', src: '/halcyon/', caption: 'Open' }, p, '/sub/')).toContain('href="/sub/halcyon/"');

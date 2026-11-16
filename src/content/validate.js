@@ -1,4 +1,5 @@
 export const MEDIA_TYPES = ['image', 'video', 'model', 'code', 'link'];
+const RESERVED_IDS = ['top', 'hero', 'next', 'main', 'chapter-menu'];
 export const FONT_KEYS = ['michroma', 'big-shoulders', 'mono'];
 const REQUIRED_TEXT = ['id', 'title', 'hook', 'date', 'status', 'world', 'headline', 'summary'];
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -17,6 +18,7 @@ export function validateProjects(projects, { worldNames, fileExists }) {
     REQUIRED_TEXT.forEach((key) => { if (!isText(p[key])) fail(`"${key}" is required and must be text`); });
     if (isText(p.id)) {
       if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(p.id)) fail('"id" must be kebab-case, like "my-project"');
+      if (RESERVED_IDS.includes(p.id)) fail(`"id" "${p.id}" is reserved by the page`);
       if (seen.has(p.id)) fail('"id" is already used by another project');
       seen.add(p.id);
     }

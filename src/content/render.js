@@ -39,7 +39,7 @@ export function renderMedia(m, project, base) {
     case 'model':
       return `<figure class="media media--model" data-model="${url(m.src)}"><img src="${url(m.poster)}" alt="${escapeHtml(m.alt)}" loading="lazy" decoding="async">${figcaption(m)}</figure>`;
     case 'code':
-      return `<figure class="media media--code"><pre tabindex="0"><code>${escapeHtml(m.code ?? '')}</code></pre>${figcaption(m)}</figure>`;
+      return `<figure class="media media--code"><pre tabindex="0" data-lenis-prevent><code>${escapeHtml(m.code ?? '')}</code></pre>${figcaption(m)}</figure>`;
     case 'link':
       return `<a class="media media--link" href="${escapeHtml(withBase(base, m.src))}"><span>${escapeHtml(m.caption)}</span><span aria-hidden="true">↗</span></a>`;
     default:
@@ -83,7 +83,7 @@ export function renderChapter(project, index, base) {
 export function renderMenuItems(projects) {
   const items = projects.map((p, i) =>
     `<li><a class="menu__link" href="#${escapeHtml(p.id)}" data-target="${escapeHtml(p.id)}"><span class="mono">${pad2(i + 1)}</span><span>${escapeHtml(p.title)}</span></a></li>`);
-  items.push(`<li class="menu__soon" aria-disabled="true"><span class="mono">${pad2(projects.length + 1)}</span><span>Coming soon</span></li>`);
+  items.push(`<li class="menu__soon"><span class="mono">${pad2(projects.length + 1)}</span><span>Coming soon</span></li>`);
   return items.join('');
 }
 

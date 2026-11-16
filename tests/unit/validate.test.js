@@ -16,6 +16,11 @@ describe('validateProjects', () => {
   it('accepts a complete project', () => {
     expect(validateProjects([valid()], ctx)).toEqual([]);
   });
+  it('rejects ids the page already uses', () => {
+    for (const id of ['top', 'hero', 'next', 'main', 'chapter-menu']) {
+      expect(errorsFor({ id }).join(' ')).toContain(`"id" "${id}" is reserved by the page`);
+    }
+  });
   it('accepts every media type when its files exist', () => {
     expect(errorsFor({ media: [
       { type: 'image', src: 'shot.webp', alt: 'x' },
