@@ -19,6 +19,7 @@ Oscar's public portfolio of projects built with Claude Code. It goes live at htt
 | `npm test` | Unit tests (Vitest) |
 | `npm run test:e2e` | Browser tests (Playwright with Microsoft Edge; use `PW_CHANNEL=chromium` after `npx playwright install chromium` for Playwright's own browser) |
 | `npm run media` | Rebuilds the HALCYON live copy, covers, screenshots and WebP images from the raw sources (needs `sources.local.json`) |
+| `npm run to-webp -- <input> <output.webp>` | Converts one image to a 1800 px WebP plus a `-900.webp` copy, with metadata stripped |
 | `npm run posters` | Builds the site and re-renders the still poster for every scene into `public/posters/` |
 | `npm run build` | Production build into `dist/` |
 
@@ -30,7 +31,7 @@ Oscar's public portfolio of projects built with Claude Code. It goes live at htt
    - images as WebP, 1800 px wide, plus an optional 900 px `-900.webp` version;
    - any videos or code files.
 
-   Strip image metadata: run `npm run check:media` to check.
+   Make images with `npm run to-webp -- <input> public/projects/<id>/<name>.webp`, which strips metadata. `npm test` fails if any published image still carries metadata (`npm run check:media` runs the same check).
 3. Run `npm run check`, then `npm run posters`, then `npm test`.
 4. Run `npm run dev` and look at it with Oscar before committing.
 
@@ -62,4 +63,4 @@ If `create` throws, or `update` throws, that chapter falls back to its poster an
 
 ## Status
 
-Milestone 1 (shell) is in place. Every chapter uses the "picture" world for now. Custom worlds come in later milestones: HALCYON (2), DEAD TIRED (3), Pico Light Show (4) and ASCII Mirror (5). Launch is milestone 6. Plans live in `docs/superpowers/plans/`.
+Milestone 1 (shell) is in place. Every project chapter uses the "picture" world for now; the hero uses "index" and the next slot uses "dormant". Custom worlds come in later milestones: HALCYON (2), DEAD TIRED (3), Pico Light Show (4) and ASCII Mirror (5). Launch is milestone 6. Plans live in `docs/superpowers/plans/`.
