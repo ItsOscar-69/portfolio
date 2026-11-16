@@ -6,3 +6,5 @@ import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/michroma/400.css';
 import '@fontsource/big-shoulders-display/900';
 import './styles/base.css';
+import './styles/layout.css';
+import './styles/chapter.css';
