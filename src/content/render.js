@@ -18,14 +18,14 @@ export function formatDate(ym) {
 export const assetUrl = (base, id, file) => withBase(base, `/projects/${id}/${file}`);
 
 export function posterImg(id, base, lazy) {
-  return `<img class="scene__poster" src="${withBase(base, `/posters/${id}.webp`)}" alt="" aria-hidden="true" decoding="async"${lazy ? ' loading="lazy"' : ''}>`;
+  return `<img class="scene__poster" src="${escapeHtml(withBase(base, `/posters/${id}.webp`))}" alt="" aria-hidden="true" decoding="async"${lazy ? ' loading="lazy"' : ''}>`;
 }
 
 const paragraphs = (text) => text.split(/\n\s*\n/).map((p) => `<p>${escapeHtml(p.trim())}</p>`).join('');
 const figcaption = (m) => (m.caption ? `<figcaption>${escapeHtml(m.caption)}</figcaption>` : '');
 
 export function renderMedia(m, project, base) {
-  const url = (file) => assetUrl(base, project.id, file);
+  const url = (file) => escapeHtml(assetUrl(base, project.id, file));
   switch (m.type) {
     case 'image': {
       const srcset = m.hasSmall

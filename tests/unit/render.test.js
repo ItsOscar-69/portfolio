@@ -73,6 +73,14 @@ describe('renderMedia', () => {
   it('reserves the image size so lazy images never shift the page', () => {
     expect(renderMedia({ type: 'image', src: 'shot.webp', alt: 'A', width: 1800, height: 1125 }, p, '/')).toContain('width="1800" height="1125"');
   });
+  it('escapes filenames in src, srcset and poster attributes', () => {
+    const img = renderMedia({ type: 'image', src: 'a"b&c.webp', alt: 'A', hasSmall: true }, p, '/');
+    expect(img).toContain('src="/projects/demo/a&quot;b&amp;c.webp"');
+    expect(img).toContain('/projects/demo/a&quot;b&amp;c.webp 1800w');
+    expect(img).not.toContain('a"b');
+    const video = renderMedia({ type: 'video', src: 'c.mp4', poster: 'p"q.webp', alt: 'A' }, p, '/');
+    expect(video).toContain('poster="/projects/demo/p&quot;q.webp"');
+  });
   it('escapes code', () => {
     expect(renderMedia({ type: 'code', src: 'a.py', code: 'if a < b:\n  print("x")' }, p, '/')).toContain('if a &lt; b:');
   });
