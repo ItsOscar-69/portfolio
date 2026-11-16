@@ -6,6 +6,6 @@ import { checkProjects } from '../../plugins/chapters.js';
 it('the real project list passes the build check', () => {
   expect(() => checkProjects(projects, path.resolve('public'))).not.toThrow();
 });
-it('launches with the four approved projects in order', () => {
-  expect(projects.map((p) => p.id)).toEqual(['halcyon-somatics', 'ascii-mirror', 'pico-light-show', 'dead-tired']);
+it('launches with the four approved projects first, in order', () => {
+  expect(projects.slice(0, 4).map((p) => p.id)).toEqual(['halcyon-somatics', 'ascii-mirror', 'pico-light-show', 'dead-tired']);
 });

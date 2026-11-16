@@ -9,7 +9,7 @@ test('every chapter world goes live', async ({ page }) => {
     await scrollToId(page, p.id);
     await expect(page.locator(`#${p.id}`)).toHaveClass(/is-live/, { timeout: 30_000 });
   }
-  // Only chapters: the hero's own world arrives in Task 12, so the hero still falls back to its poster here.
+  // Only chapters: the hero has its own test in hero.spec.js.
   await expect(page.locator('.chapter.is-failed')).toHaveCount(0);
 });
 

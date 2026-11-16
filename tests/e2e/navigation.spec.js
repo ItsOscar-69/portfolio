@@ -77,4 +77,26 @@ test.describe('with smooth scrolling (what most visitors get)', () => {
     await page.waitForTimeout(500); // stays put once Lenis settles
     expect(await topOf(page, last.id)).toBeLessThanOrEqual(2);
   });
+  test('a deep link lands on its chapter and the pill names it', async ({ page }) => {
+    const last = projects.length - 1;
+    await page.goto(`./#${projects[last].id}`);
+    await expect(page.locator('.pill__label')).toHaveText(label(last), { timeout: 30_000 });
+  });
+
+  test('resizing mid-page keeps the pill in sync', async ({ page }) => {
+    await page.goto('./');
+    await scrollToId(page, projects[2].id);
+    await expect(page.locator('.pill__label')).toHaveText(label(2), { timeout: 30_000 });
+    await page.setViewportSize({ width: 375, height: 812 });
+    await scrollToId(page, projects[1].id);
+    await expect(page.locator('.pill__label')).toHaveText(label(1), { timeout: 30_000 });
+  });
+
+  test('the pill names each chapter as you scroll to it', async ({ page }) => {
+    await page.goto('./');
+    for (const [i, p] of projects.entries()) {
+      await scrollToId(page, p.id);
+      await expect(page.locator('.pill__label')).toHaveText(label(i), { timeout: 30_000 });
+    }
+  });
 });
