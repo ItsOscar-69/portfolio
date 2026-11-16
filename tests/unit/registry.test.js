@@ -8,3 +8,6 @@ it('only registers worlds whose names are allowed in content', () => {
 it('loads lazily (each entry is a function)', () => {
   for (const load of Object.values(worldLoaders)) expect(typeof load).toBe('function');
 });
+it('has a world file for every allowed name', () => {
+  expect(Object.keys(worldLoaders).sort()).toEqual([...WORLD_NAMES].sort());
+});
