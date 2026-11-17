@@ -1,4 +1,6 @@
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+import { WORLD_ASSETS } from '../worlds/names.js';
+
+const MONTHS =['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const ENTITIES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
 export const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (ch) => ENTITIES[ch]);
@@ -49,7 +51,10 @@ export function renderMedia(m, project, base) {
 
 function worldOptionsFor(project, base) {
   const options = { ...(project.worldOptions || {}) };
-  if (options.cover) options.cover = assetUrl(base, project.id, options.cover);
+  for (const [key, kind] of Object.entries(WORLD_ASSETS[project.world] || {})) {
+    if (kind === 'list' && Array.isArray(options[key])) options[key] = options[key].map((file) => assetUrl(base, project.id, file));
+    else if (typeof options[key] === 'string') options[key] = assetUrl(base, project.id, options[key]);
+  }
   return options;
 }
 

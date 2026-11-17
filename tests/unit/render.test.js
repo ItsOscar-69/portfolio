@@ -59,6 +59,12 @@ describe('renderChapter', () => {
     expect(html).toContain('href="/sub/halcyon/"');
     expect(html).toContain('data-number="03"');
   });
+  it('resolves every asset a world needs to full URLs, including lists', () => {
+    const html = renderChapter(project({ world: 'halcyon', worldOptions: { svg: 'body.svg', panels: ['a.webp', 'b.webp'], palette: ['#ffffff'] } }), 0, '/sub/');
+    expect(html).toContain('&quot;svg&quot;:&quot;/sub/projects/demo/body.svg&quot;');
+    expect(html).toContain('&quot;panels&quot;:[&quot;/sub/projects/demo/a.webp&quot;,&quot;/sub/projects/demo/b.webp&quot;]');
+    expect(html).toContain('&quot;palette&quot;:[&quot;#ffffff&quot;]');
+  });
   it('uses the short title for data-short when given', () => {
     expect(renderChapter(project({ shortTitle: 'Short' }), 0, '/')).toContain('data-short="Short"');
   });

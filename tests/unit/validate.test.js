@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { validateProjects } from '../../src/content/validate.js';
 
-const files = new Set(['projects/demo/cover.webp', 'projects/demo/shot.webp', 'projects/demo/a.py', 'projects/demo/poster.webp', 'projects/demo/clip.mp4']);
+const files = new Set(['projects/demo/cover.webp', 'projects/demo/shot.webp', 'projects/demo/a.py', 'projects/demo/poster.webp', 'projects/demo/clip.mp4', 'projects/demo/body.svg', 'projects/demo/a.webp']);
 const ctx = { worldNames: ['index', 'picture', 'dormant'], fileExists: (p) => files.has(p) };
 const valid = (over = {}) => ({
   id: 'demo', title: 'Demo', hook: 'A demo.', date: '2026-09', status: 'done', tags: ['Web'],
@@ -55,6 +55,15 @@ describe('validateProjects', () => {
   it('requires a cover file for the picture world', () => {
     expect(errorsFor({ worldOptions: {} })[0]).toMatch(/needs "worldOptions.cover"/);
     expect(errorsFor({ worldOptions: { cover: 'nope.webp' } })[0]).toMatch(/cover file not found: public\/projects\/demo\/nope.webp/);
+  });
+  it('checks the files each world needs, including lists', () => {
+    const ctx2 = { ...ctx, worldNames: [...ctx.worldNames, 'halcyon'] };
+    const halcyon = (worldOptions) => validateProjects([valid({ world: 'halcyon', worldOptions })], ctx2);
+    expect(halcyon({ svg: 'body.svg', panels: ['a.webp'] })).toEqual([]);
+    expect(halcyon({ svg: 'body.svg' })[0]).toMatch(/the "halcyon" world needs "worldOptions\.panels" \(a list of files\)/);
+    expect(halcyon({ svg: 'body.svg', panels: [] })[0]).toMatch(/needs "worldOptions\.panels"/);
+    expect(halcyon({ panels: ['a.webp'] })[0]).toMatch(/the "halcyon" world needs "worldOptions\.svg"/);
+    expect(halcyon({ svg: 'body.svg', panels: ['a.webp', 'b.webp'] })[0]).toMatch(/panels file not found: public\/projects\/demo\/b\.webp/);
   });
   it('requires cards text', () => {
     expect(errorsFor({ cards: { idea: 'a', built: 'b' } })[0]).toMatch(/"cards" needs/);

@@ -1,11 +1,13 @@
-export const MEDIA_TYPES = ['image', 'video', 'model', 'code', 'link'];
+import { WORLD_ASSETS } from '../worlds/names.js';
+
+export const MEDIA_TYPES =['image', 'video', 'model', 'code', 'link'];
 const RESERVED_IDS = ['top', 'hero', 'next', 'main', 'chapter-menu'];
 export const FONT_KEYS = ['michroma', 'big-shoulders', 'mono'];
 const REQUIRED_TEXT = ['id', 'title', 'hook', 'date', 'status', 'world', 'headline', 'summary'];
 const HEX = /^#[0-9a-f]{6}$/i;
 const isText = (v) => typeof v === 'string' && v.trim().length > 0;
 
-export function validateProjects(projects, { worldNames, fileExists }) {
+export function validateProjects(projects, { worldNames, fileExists, worldAssets = WORLD_ASSETS }) {
   if (!Array.isArray(projects) || projects.length === 0) return ['the project list must contain at least one project'];
   const errors = [];
   const seen = new Set();
@@ -37,9 +39,16 @@ export function validateProjects(projects, { worldNames, fileExists }) {
     if (o && o.palette !== undefined && (!Array.isArray(o.palette) || !o.palette.every((h) => typeof h === 'string' && HEX.test(h)))) {
       fail('"worldOptions.palette" must be a list of colours like "#39ff88"');
     }
-    if (p.world === 'picture') {
-      if (!o || !isText(o.cover)) fail('the "picture" world needs "worldOptions.cover"');
-      else if (!fileExists(`projects/${p.id}/${o.cover}`)) fail(`cover file not found: public/projects/${p.id}/${o.cover}`);
+    const needs = isText(p.world) ? worldAssets[p.world] : undefined;
+    if (needs) {
+      for (const [key, kind] of Object.entries(needs)) {
+        const value = o ? o[key] : undefined;
+        const ok = kind === 'list' ? Array.isArray(value) && value.length > 0 && value.every(isText) : isText(value);
+        if (!ok) { fail(`the "${p.world}" world needs "worldOptions.${key}"${kind === 'list' ? ' (a list of files)' : ''}`); continue; }
+        for (const file of kind === 'list' ? value : [value]) {
+          if (!fileExists(`projects/${p.id}/${file}`)) fail(`${key} file not found: public/projects/${p.id}/${file}`);
+        }
+      }
     }
 
     if (!Array.isArray(p.media) || p.media.length === 0) fail('"media" needs at least one item');
