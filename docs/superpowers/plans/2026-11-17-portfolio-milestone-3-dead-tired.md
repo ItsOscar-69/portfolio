@@ -97,7 +97,8 @@ test('still mode waits for slow background panels before it reports ready', asyn
     released = true;
     await route.continue();
   });
-  await page.goto('./?still=halcyon-somatics&p=0.85&tier=high');
+  // Don't wait for `load`: a slow image that starts before it would hold `load` back, and `goto` would hide the bug.
+  await page.goto('./?still=halcyon-somatics&p=0.85&tier=high', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('html')).toHaveAttribute('data-still-ready', '1', { timeout: 80_000 });
   expect(released).toBe(true);
 });
@@ -640,9 +641,15 @@ Stop the server, then view the screenshots with the Read tool. Check that:
 - at 0.8 they read as the finished print, face-on, matching `public/projects/dead-tired/on-black.webp`'s design;
 - ink dust drifts around;
 - the Big Shoulders title stays readable;
-- on the phone the print sits above the title.
+- on the phone the print sits above the title;
+- on the phone at 0.1, no layer is cut off at the screen edges. `resize` only sizes for the flat print, and the turned, spread stack is wider.
 
-Tune only `SPREAD`, the rotation amounts, the lift or the dust count if something reads badly, and say what you changed.
+If something reads badly, tune only these, and say what you changed:
+- `SPREAD`;
+- the rotation amounts;
+- the lift;
+- the fit factors in `resize` (for example, a smaller width factor on phones);
+- the dust count.
 
 - [ ] **Step 6: Commit**
 
