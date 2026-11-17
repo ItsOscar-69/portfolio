@@ -130,20 +130,9 @@ export default {
     const body = new THREE.Group();
     body.add(points);
 
-    // Panels are decoration: one that fails to load is skipped, not fatal.
-    const results = await Promise.allSettled((options.panels || []).slice(0, PANEL_LAYOUT.length).map(loadPanelTexture));
     const panels = [];
-    results.forEach((result, i) => {
-      if (result.status !== 'fulfilled') { console.warn(`[halcyon] panel ${options.panels[i]} failed to load; skipping it.`); return; }
-      const panel = makePanel(result.value);
-      const at = PANEL_LAYOUT[i];
-      panel.group.position.set(at.x, at.y, at.z);
-      panel.group.rotation.y = at.ry;
-      panel.layout = at;
-      panels.push(panel);
-    });
     const panelGroup = new THREE.Group();
-    panels.forEach((panel) => panelGroup.add(panel.group));
+    let disposed = false;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#0b1a1f');
@@ -151,6 +140,20 @@ export default {
     const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 50);
     camera.position.set(0, 0, 3.4);
     const bodyHalfWidth = (shape.width / 2) * k;
+
+    // Panels are decoration: they load in the background and attach as they arrive; one that fails is skipped.
+    (options.panels || []).slice(0, PANEL_LAYOUT.length).forEach((url, i) => {
+      loadPanelTexture(url).then((loaded) => {
+        const panel = makePanel(loaded);
+        if (disposed) { panel.dispose(); return; }
+        const at = PANEL_LAYOUT[i];
+        panel.group.position.set(at.x, at.y, at.z);
+        panel.group.rotation.y = at.ry;
+        panel.layout = at;
+        panels.push(panel);
+        panelGroup.add(panel.group);
+      }, () => console.warn(`[halcyon] panel ${url} failed to load; skipping it.`));
+    });
 
     return {
       scene,
@@ -161,7 +164,8 @@ export default {
         uniforms.uScanY.value = BODY_HEIGHT / 2 - ((time * 0.12) % 1) * BODY_HEIGHT;
         body.rotation.y += (pointer.x * 0.3 - body.rotation.y) * 0.05;
         body.rotation.x += (pointer.y * 0.1 - body.rotation.x) * 0.05;
-        panels.forEach((panel, i) => {
+        panels.forEach((panel) => {
+          const i = PANEL_LAYOUT.indexOf(panel.layout);
           panel.group.position.y = panel.layout.y + (progress - 0.5) * 1.8 * panel.layout.speed + Math.sin(time * 0.4 + i * 2) * 0.04;
         });
       },
@@ -179,6 +183,7 @@ export default {
         panelGroup.scale.setScalar(Math.min(1, camera.aspect / 1.6));
       },
       dispose() {
+        disposed = true;
         geometry.dispose();
         material.dispose();
         panels.forEach((panel) => panel.dispose());
