@@ -171,8 +171,9 @@ export default {
         uniforms.uScale.value = dpr * (height / 900);
         const halfH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.position.z;
         const halfW = halfH * camera.aspect;
-        body.scale.setScalar(Math.min(1, (halfW * 0.9) / (bodyHalfWidth + 0.05), (halfH * 0.92) / (BODY_HEIGHT / 2)));
-        body.position.y = camera.aspect < 0.8 ? 0.22 : 0;
+        const lift = camera.aspect < 0.8 ? 0.22 : 0; // phones: raise the body clear of the title
+        body.scale.setScalar(Math.min(1, (halfW * 0.9) / (bodyHalfWidth + 0.05), (halfH * 0.92 - lift) / (BODY_HEIGHT / 2)));
+        body.position.y = lift;
         body.position.x = camera.aspect > 1.2 ? halfW * 0.3 : 0; // keep the bottom-left title clear on wide screens
         panelGroup.visible = camera.aspect > 0.8; // phones: just the body
         panelGroup.scale.setScalar(Math.min(1, camera.aspect / 1.6));

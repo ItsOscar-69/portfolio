@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { polylineLength, samplePolylines } from '../../src/lib/polyline.js';
+import { polylineLength, samplePolylines, splitAtJumps } from '../../src/lib/polyline.js';
 import { mulberry32 } from '../../src/lib/rng.js';
 
 const line = (points, extra = {}) => ({ points, color: [1, 0.5, 0], ...extra });
@@ -57,4 +57,25 @@ it('is deterministic for the same seed', () => {
   const a = samplePolylines([line([0, 0, 4, 9, 2, 1])], 64, mulberry32(9));
   const b = samplePolylines([line([0, 0, 4, 9, 2, 1])], 64, mulberry32(9));
   expect(Array.from(a.positions)).toEqual(Array.from(b.positions));
+});
+
+it('splits a run wherever consecutive points jump further than maxGap', () => {
+  const pieces = splitAtJumps([0, 0, 1, 0, 2, 0, 100, 100, 101, 100], 6);
+  expect(pieces.map((p) => Array.from(p))).toEqual([[0, 0, 1, 0, 2, 0], [100, 100, 101, 100]]);
+});
+
+it('keeps a run with no jump as one identical piece', () => {
+  const pieces = splitAtJumps([0, 0, 1, 0, 2, 1], 6);
+  expect(pieces.length).toBe(1);
+  expect(Array.from(pieces[0])).toEqual([0, 0, 1, 0, 2, 1]);
+});
+
+it('drops a lone point left on its own by a jump', () => {
+  const pieces = splitAtJumps([0, 0, 1, 0, 50, 50], 6);
+  expect(pieces.map((p) => Array.from(p))).toEqual([[0, 0, 1, 0]]);
+});
+
+it('returns nothing for an empty or single-point input', () => {
+  expect(splitAtJumps([], 6)).toEqual([]);
+  expect(splitAtJumps([3, 4], 6)).toEqual([]);
 });

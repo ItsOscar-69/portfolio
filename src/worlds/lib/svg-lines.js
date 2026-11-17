@@ -1,5 +1,7 @@
 // Turns every stroked shape in an SVG into a polyline (points in the SVG's own units),
 // using the browser's SVG geometry API. Fill-only shapes and text are skipped.
+import { splitAtJumps } from '../../lib/polyline.js';
+
 const SHAPES = 'path, line, polyline, polygon, circle, ellipse, rect';
 
 function strokeOf(el) {
@@ -32,19 +34,14 @@ export function svgToPolylines(svgText, { step = 1.5 } = {}) {
       const length = el.getTotalLength();
       if (!(length > 0)) continue;
       const n = Math.max(2, Math.ceil(length / step));
-      // A moveto inside a path makes consecutive samples jump; split there so no particles fill the gap.
-      let run = [];
-      const flush = () => {
-        if (run.length >= 4) polylines.push({ stroke, points: Float32Array.from(run) });
-        run = [];
-      };
+      const run = new Float32Array(n * 2);
       for (let i = 0; i < n; i++) {
         const p = el.getPointAtLength((i / (n - 1)) * length);
-        const last = run.length;
-        if (last && Math.hypot(p.x - run[last - 2], p.y - run[last - 1]) > step * 4) flush();
-        run.push(p.x, p.y);
+        run[i * 2] = p.x;
+        run[i * 2 + 1] = p.y;
       }
-      flush();
+      // A moveto inside a path makes consecutive samples jump; split there so no particles fill the gap.
+      for (const points of splitAtJumps(run, step * 4)) polylines.push({ stroke, points });
     }
     return { width, height, polylines };
   } finally {

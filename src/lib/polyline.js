@@ -53,3 +53,19 @@ export function samplePolylines(polylines, count, rng) {
   }
   return { positions, colors, lines, count };
 }
+
+// Splits a flat [x0, y0, x1, y1, ...] run into pieces, starting a new piece wherever two
+// consecutive points are further apart than maxGap. Pieces with fewer than 2 points are dropped.
+export function splitAtJumps(points, maxGap) {
+  const pieces = [];
+  let start = 0;
+  const flush = (end) => {
+    if (end - start >= 4) pieces.push(Float32Array.from(Array.prototype.slice.call(points, start, end)));
+    start = end;
+  };
+  for (let i = 2; i < points.length; i += 2) {
+    if (Math.hypot(points[i] - points[i - 2], points[i + 1] - points[i - 1]) > maxGap) flush(i);
+  }
+  flush(points.length);
+  return pieces;
+}
