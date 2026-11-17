@@ -24,6 +24,10 @@ export async function prepareProjects(list, publicDir) {
         const hasSmall = /\.webp$/i.test(m.src) && fs.existsSync(file(m.src.replace(/\.webp$/i, '-900.webp')));
         return { ...m, width, height, hasSmall };
       }
+      if (m.type === 'video') {
+        const { width, height } = await sharp(file(m.poster)).metadata(); // reserves the video's space before the poster arrives
+        return { ...m, width, height };
+      }
       return m;
     }));
     return { ...p, media };

@@ -1,6 +1,6 @@
 import { WORLD_ASSETS } from '../worlds/names.js';
 
-const MONTHS =['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const ENTITIES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
 export const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (ch) => ENTITIES[ch]);
@@ -36,8 +36,10 @@ export function renderMedia(m, project, base) {
       const size = m.width && m.height ? ` width="${m.width}" height="${m.height}"` : ''; // reserves space for lazy images
       return `<figure class="media media--image"><img src="${url(m.src)}"${srcset}${size} alt="${escapeHtml(m.alt)}" loading="lazy" decoding="async">${figcaption(m)}</figure>`;
     }
-    case 'video':
-      return `<figure class="media media--video"><video src="${url(m.src)}" poster="${url(m.poster)}" controls muted loop playsinline preload="none" data-autoplay aria-label="${escapeHtml(m.alt)}"></video>${figcaption(m)}</figure>`;
+    case 'video': {
+      const size = m.width && m.height ? ` width="${m.width}" height="${m.height}"` : '';
+      return `<figure class="media media--video"><video src="${url(m.src)}" poster="${url(m.poster)}"${size} controls muted loop playsinline preload="none" data-autoplay aria-label="${escapeHtml(m.alt)}"></video>${figcaption(m)}</figure>`;
+    }
     case 'model':
       return `<figure class="media media--model" data-model="${url(m.src)}"><img src="${url(m.poster)}" alt="${escapeHtml(m.alt)}" loading="lazy" decoding="async">${figcaption(m)}</figure>`;
     case 'code':

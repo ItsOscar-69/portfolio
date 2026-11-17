@@ -100,6 +100,10 @@ describe('renderMedia', () => {
     expect(video).toContain(' controls muted loop playsinline preload="none" data-autoplay');
     expect(renderMedia({ type: 'model', src: 'm.glb', poster: 'm.webp', alt: 'A' }, p, '/')).toContain('data-model="/projects/demo/m.glb"');
   });
+  it('reserves space for a video', () => {
+    const video = renderMedia({ type: 'video', src: 'c.mp4', poster: 'c.webp', alt: 'A', width: 1280, height: 800 }, p, '/');
+    expect(video).toContain('width="1280" height="800"');
+  });
   it('throws on unknown media types', () => {
     expect(() => renderMedia({ type: 'gif', src: 'x' }, p, '/')).toThrow(/unknown media type/);
   });

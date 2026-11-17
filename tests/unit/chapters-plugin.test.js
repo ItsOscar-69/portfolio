@@ -17,6 +17,8 @@ const tmpPublic = async () => {
   await webp(path.join(demoDir, 'shot-900.webp'), 20, 12);
   await webp(path.join(demoDir, 'big.webp'), 30, 30);
   await webp(path.join(demoDir, 'cover.webp'), 10, 10);
+  await webp(path.join(demoDir, 'poster.webp'), 64, 40);
+  fs.writeFileSync(path.join(demoDir, 'clip.mp4'), 'not really a video');
   return dir;
 };
 const demo = {
@@ -34,6 +36,11 @@ it('attaches code text, image sizes and which images have a 900px version', asyn
   expect(p.media[0].code).toBe('two\nthree');
   expect(p.media[1]).toMatchObject({ hasSmall: true, width: 40, height: 25 });
   expect(p.media[2]).toMatchObject({ hasSmall: false, width: 30, height: 30 });
+});
+it('sizes a video from its poster', async () => {
+  const video = { type: 'video', src: 'clip.mp4', poster: 'poster.webp', alt: 'x' };
+  const [p] = await prepareProjects([{ ...demo, media: [video] }], await tmpPublic());
+  expect(p.media[0]).toMatchObject({ src: 'clip.mp4', width: 64, height: 40 });
 });
 it('throws one error listing every problem', async () => {
   const broken = { ...demo, title: '', media: [{ type: 'image', src: 'gone.webp', alt: 'x' }] };
