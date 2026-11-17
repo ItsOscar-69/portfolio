@@ -40,9 +40,12 @@ test.describe('with reduced motion', () => {
     const show = page.locator('#pico-light-show');
     await expect(show.getByRole('button', { name: 'Play' })).toBeVisible();
     const before = await dots(page);
+    expect(before.split('|')).toHaveLength(20);
+    for (const colour of before.split('|')) expect(colour).toMatch(/^rgb\(/);
     await page.waitForTimeout(800);
     expect(await dots(page)).toBe(before);
     await expect(page.locator('html')).not.toHaveClass(/webgl/);
+    await expect(show).not.toHaveClass(/is-live/);
     await show.getByRole('button', { name: 'Play' }).click();
     await expect.poll(() => dots(page), { timeout: 5_000 }).not.toBe(before);
     await expect(show.locator('.code-line.is-running')).toHaveCount(1);
@@ -58,6 +61,9 @@ test('without WebGL the show still runs on the dot strip', async ({ page }) => {
   });
   await page.goto('./');
   await scrollToId(page, 'pico-light-show');
+  await page.waitForTimeout(1000);
+  await expect(page.locator('html')).not.toHaveClass(/webgl/);
+  await expect(page.locator('#pico-light-show')).not.toHaveClass(/is-live/);
   const before = await dots(page);
   await expect.poll(() => dots(page), { timeout: 5_000 }).not.toBe(before);
 });
