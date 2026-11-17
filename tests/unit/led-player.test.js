@@ -15,6 +15,8 @@ describe('the light-show player', () => {
     const p = createPlayer();
     p.advance(600, 'world'); // ten minutes away
     expect(p.state.frame).toBe(5);
+    p.advance(0.02, 'world');
+    expect(p.state.frame).toBe(6); // the backlog was dropped, not banked
   });
 
   it('runs at single speed when the 3D world and the page both drive it, in either order', () => {
@@ -65,6 +67,17 @@ describe('the light-show player', () => {
 
   it('shares one player across the page', () => {
     expect(sharedPlayer()).toBe(sharedPlayer());
+  });
+
+  it('ignores zero, negative and non-finite time, and keeps running afterwards', () => {
+    const p = createPlayer();
+    const seen = [];
+    p.subscribe((s) => seen.push(s.frame));
+    for (const bad of [NaN, Infinity, -1, 0]) p.advance(bad, 'world');
+    expect(p.state.frame).toBe(0);
+    expect(seen).toEqual([]);
+    p.advance(0.1, 'world');
+    expect(p.state.frame).toBe(5);
   });
 });
 

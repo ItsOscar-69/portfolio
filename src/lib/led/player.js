@@ -25,7 +25,8 @@ export function createPlayer({ seed = 1543 } = {}) {
         worldTicksSeenByPage = worldTicks;
         if (worldRan) return player.state;
       }
-      if (!player.playing) return player.state;
+      // A zero, negative or non-finite time never runs frames or breaks the clock.
+      if (!player.playing || !(seconds > 0 && Number.isFinite(seconds))) return player.state;
       carry += seconds * FPS;
       const due = Math.floor(carry);
       carry -= due;
