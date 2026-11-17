@@ -35,6 +35,8 @@
 .lightshow__now { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-bottom: 12px; color: var(--muted); font-size: 13px; }
 .lightshow__strip { display: inline-flex; gap: 4px; padding: 7px 9px; border-radius: 999px; background: #141414; }
 .lightshow__strip i { width: 9px; height: 9px; border-radius: 50%; background: #000; }
+.lightshow__strip--intro { flex: 0 0 auto; margin-right: 100%; margin-bottom: 6px; }
+html.webgl .scene.is-live .lightshow__strip--intro { display: none; }
 .media--code pre { position: relative; }
 .code-line { display: inline-block; min-width: 100%; min-height: 1.6em; vertical-align: top; }
 .code-line.is-running { background: rgba(57, 208, 255, 0.16); box-shadow: inset 3px 0 0 #39d0ff; }

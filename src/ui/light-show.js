@@ -38,10 +38,19 @@ export function createLightShow({ doc, reduced = false }) {
     const chip = button('chip', effect.label);
     chip.dataset.effect = effect.name;
     chip.setAttribute('aria-pressed', 'false');
-    chip.addEventListener('click', () => player.select(index));
+    chip.addEventListener('click', () => { resumeFollowing(); player.select(index); }); // a chip click resumes the code box following the show
     return chip;
   });
-  controls.append(playButton, ...chips);
+  // A second dot strip at the start of the controls: shows the show wherever the 3D strip isn't (reduced motion,
+  // no WebGL, a failed world). The stylesheet hides it while the 3D world is live.
+  const dotStrip = (className) => {
+    const strip = doc.createElement('span');
+    strip.className = className;
+    strip.setAttribute('aria-hidden', 'true');
+    return [strip, Array.from({ length: NUM_LEDS }, () => strip.appendChild(doc.createElement('i')))];
+  };
+  const [introStrip, introDots] = dotStrip('lightshow__strip lightshow__strip--intro');
+  controls.append(introStrip, playButton, ...chips);
   chapter.querySelector('.chapter__hook').after(controls);
 
   const figure = chapter.querySelector('.media--code[data-live]');
@@ -52,19 +61,34 @@ export function createLightShow({ doc, reduced = false }) {
   if (figure) {
     const now = doc.createElement('div');
     now.className = 'lightshow__now';
-    const strip = doc.createElement('span');
-    strip.className = 'lightshow__strip';
-    strip.setAttribute('aria-hidden', 'true');
-    dots = Array.from({ length: NUM_LEDS }, () => strip.appendChild(doc.createElement('i')));
+    const [strip, panelDots] = dotStrip('lightshow__strip');
+    dots = panelDots;
     nameEl = doc.createElement('span');
     nameEl.className = 'lightshow__name mono';
     now.append(strip, nameEl);
     figure.prepend(now);
   }
 
+  // Auto-follow is suspended while the visitor reads the box: pointer over it, focus inside it, or 4 s after they
+  // scroll it (wheel, touch or keys; not the scroll event, which our own scrollTop writes fire too). A chip click
+  // resumes following at once.
+  let hovering = false;
+  let focused = false;
+  let readingUntil = 0;
+  const reading = () => hovering || focused || win.performance.now() < readingUntil;
+  if (pre) {
+    const touched = () => { readingUntil = win.performance.now() + 4000; };
+    pre.addEventListener('pointerenter', () => { hovering = true; });
+    pre.addEventListener('pointerleave', () => { hovering = false; });
+    pre.addEventListener('focusin', () => { focused = true; });
+    pre.addEventListener('focusout', () => { focused = false; });
+    ['wheel', 'touchmove', 'keydown'].forEach((type) => pre.addEventListener(type, touched, { passive: true }));
+  }
+  const resumeFollowing = () => { hovering = false; focused = false; readingUntil = 0; };
+
   // Scrolls the code box itself, never the page.
   const reveal = (el, atTop) => {
-    if (!pre || !el) return;
+    if (!pre || !el || reading()) return;
     const outside = el.offsetTop < pre.scrollTop || el.offsetTop + el.offsetHeight > pre.scrollTop + pre.clientHeight;
     if (atTop || outside) pre.scrollTop = Math.max(0, el.offsetTop - (atTop ? 8 : pre.clientHeight / 3));
   };
@@ -87,7 +111,11 @@ export function createLightShow({ doc, reduced = false }) {
     }
     if (state.frame !== shownFrame) {
       shownFrame = state.frame;
-      state.colours.forEach((c, i) => { if (dots[i]) dots[i].style.backgroundColor = rgb(c); });
+      state.colours.forEach((c, i) => {
+        const colour = rgb(c);
+        if (dots[i]) dots[i].style.backgroundColor = colour;
+        introDots[i].style.backgroundColor = colour;
+      });
     }
     const line = pick(state.line, byName[state.effect].restLine, win.performance.now());
     if (line !== shownLine) {
