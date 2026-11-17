@@ -74,8 +74,9 @@ export default {
     const stripGeometry = ribbon(curve, 0.2);
     const stripMaterial = new THREE.MeshBasicMaterial({ color: '#141414', side: THREE.DoubleSide });
     const packageGeometry = new THREE.BoxGeometry(0.13, 0.13, 0.03);
-    const packageMaterial = new THREE.MeshBasicMaterial({ color: '#34322e' });
+    const packageMaterial = new THREE.MeshBasicMaterial({ color: '#34322e', depthWrite: false }); // no depth write, so the halo isn't clipped by a package corner
     const packages = new THREE.InstancedMesh(packageGeometry, packageMaterial, NUM_LEDS);
+    packages.renderOrder = 0.5; // after the ribbon, before the halos
     const ledGeometry = new THREE.SphereGeometry(LED_RADIUS, 20, 14);
     const ledMaterial = new THREE.MeshBasicMaterial();
     const leds = new THREE.InstancedMesh(ledGeometry, ledMaterial, NUM_LEDS);
