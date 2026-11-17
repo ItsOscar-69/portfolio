@@ -1,4 +1,4 @@
-import { Vector2 } from 'three';
+import { Color, Vector2 } from 'three';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 // Glow for worlds that ask for it. It blooms a render target in place: when it isn't rendering to the screen,
@@ -8,6 +8,7 @@ export function createBloom() {
   let pass = null;
   let width = 1;
   let height = 1;
+  const savedColour = new Color();
   return {
     resize(w, h) {
       width = w;
@@ -19,7 +20,16 @@ export function createBloom() {
       pass.strength = strength;
       pass.radius = radius;
       pass.threshold = threshold;
-      pass.render(renderer, null, target, 0, false);
+      const autoClear = renderer.autoClear;
+      renderer.getClearColor(savedColour);
+      const alpha = renderer.getClearAlpha();
+      try {
+        pass.render(renderer, null, target, 0, false);
+      } finally {
+        // If the pass throws halfway, the stage keeps clearing normally.
+        renderer.autoClear = autoClear;
+        renderer.setClearColor(savedColour, alpha);
+      }
     },
     dispose() {
       if (pass) pass.dispose();
