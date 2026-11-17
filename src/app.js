@@ -115,7 +115,11 @@ export async function startApp({ win = window, doc = document } = {}) {
     onSelect: goTo,
   });
   autoplayVideos(doc, { reduced });
-  createLightShow({ doc, reduced });
+  try {
+    createLightShow({ doc, reduced });
+  } catch (err) {
+    console.error('[light show] the controls failed to start; the rest of the page carries on.', err);
+  }
 
   let layout = measure(scenes, win);
   let state = sceneState(win.scrollY, win.innerHeight, layout);

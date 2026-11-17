@@ -36,6 +36,7 @@ export function createPlayer({ seed = 1543 } = {}) {
       return player.state;
     },
     select(index) {
+      // Picking an effect is an explicit request to watch it, so it plays even when paused or under reduced motion.
       show.select(index);
       player.playing = true;
       notify();

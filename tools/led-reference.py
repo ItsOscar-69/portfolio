@@ -72,6 +72,7 @@ sys.modules.update({'random': fake_random, 'time': fake_time, 'machine': machine
 # Run everything in boot.py except its final `try: light_show()`, then call light_show() with show() swapped for
 # a recorder. Every line that draws a frame is boot.py's own.
 source = open(boot_path, encoding='utf8').read()
+boot_sha256 = hashlib.sha256(open(boot_path, 'rb').read()).hexdigest()  # the file's bytes exactly as on disk
 cut = source.index('\ntry:\n    light_show()')
 g = {'__name__': 'boot'}
 exec(compile(source[:cut], 'boot.py', 'exec'), g)
@@ -98,6 +99,8 @@ except Done:
 
 values = [v for f in frames for c in f for v in c]
 non_int = sum(1 for v in values if not isinstance(v, int))
+if non_int > 0:
+    sys.exit(f'boot.py produced {non_int} non-integer channel values; the JavaScript port assumes integers, so the reference was not written.')
 encode = lambda block: '\n'.join(';'.join(','.join(str(v) for v in c) for c in f) for f in block)
 BLOCK = 50
 blocks = [hashlib.sha256(encode(frames[i:i + BLOCK]).encode()).hexdigest()[:16] for i in range(0, len(frames), BLOCK)]
@@ -105,6 +108,7 @@ checkpoints = {str(i): frames[i] for i in (0, 27, 28, 40, 72, 129, 130, 155, 179
                if i < len(frames)}
 out = {
     'source': 'MicroPico/boot.py run under CPython by tools/led-reference.py',
+    'bootSha256': boot_sha256,
     'seed': seed,
     'frames': len(frames),
     'blockSize': BLOCK,

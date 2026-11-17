@@ -10,6 +10,11 @@ const run = (show, n) => Array.from({ length: n }, () => show.step());
 const encode = (frames) => frames.map((f) => f.map((c) => c.join(',')).join(';')).join('\n');
 
 describe('the light-show port', () => {
+  it('the fixture was recorded from this exact boot.py', () => {
+    const bytes = fs.readFileSync('public/projects/pico-light-show/boot.py');
+    expect(crypto.createHash('sha256').update(bytes).digest('hex')).toBe(ref.bootSha256);
+  });
+
   const states = run(createShow({ seed: ref.seed }), ref.frames);
 
   it('shows exactly the frames the real boot.py shows: the intro, all six effects and back to the first', () => {
