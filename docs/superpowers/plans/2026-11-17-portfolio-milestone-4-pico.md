@@ -893,7 +893,7 @@ export function createShow({ seed = 1543 } = {}) {
 - [ ] **Step 4: Run the tests**
 
 Run: `npx vitest run tests/unit/led-show.test.js`
-Expected: PASS (7 tests). If the reference test fails, its message names the first 50-frame block that differs. Compare that block's frames with `boot.py` line by line. Never edit the fixture to make it pass.
+Expected: PASS (8 tests). If the reference test fails, its message names the first 50-frame block that differs. Compare that block's frames with `boot.py` line by line. Never edit the fixture to make it pass.
 
 Run: `npm test`
 Expected: all PASS.
@@ -1138,4 +1138,961 @@ git commit -m "feat: add the light-show player (50 fps, one driver, no catch-up)
 
 ---
 
-<!-- PART 2: Tasks 4-8 -->
+### Task 4: Bloom in the stage, for worlds that ask for it
+
+**Files:**
+- Create: `src/stage/bloom.js`
+- Modify: `src/lib/tier.js`, `src/stage/transition.js`, `src/stage/stage.js`, `tests/unit/tier.test.js`
+
+**Interfaces:**
+- Consumes:
+  - `TIER_SETTINGS` and `pickTier` (M1, `src/lib/tier.js`);
+  - `createCompositor(renderer)` (M1, `src/stage/transition.js`), which returns `{ resize, render(from, to, t), dispose }`;
+  - `stage.frame` (M1), which today renders the active world straight to the screen, or blends two through the compositor.
+- Produces:
+  - World interface addition: an optional `bloom: { strength, radius, threshold }` on the object `create` returns.
+  - `TIER_SETTINGS[tier].bloom` (`high: true, mid: true, low: false`).
+  - `bloomFor(tier, request)` returns `request` or `null`.
+  - `createBloom()` returns `{ resize(w, h), apply(renderer, target, settings), dispose() }`.
+  - The compositor gains `render(from, to, t, post)` and `single(world, post)`, where `post(world, target)` runs on each world's render target.
+  - Worlds without `bloom` render exactly as before, straight to the screen.
+
+- [ ] **Step 1: Write the failing tier test**
+
+In `tests/unit/tier.test.js`, change the import line to:
+```js
+import { pickTier, particleCount, TIER_SETTINGS, bloomFor } from '../../src/lib/tier.js';
+```
+and append:
+```js
+it('blooms on the high and mid tiers, never on low (spec §8.1)', () => {
+  const ask = { strength: 1, radius: 0.5, threshold: 0.1 };
+  expect(bloomFor('high', ask)).toBe(ask);
+  expect(bloomFor('mid', ask)).toBe(ask);
+  expect(bloomFor('low', ask)).toBeNull();
+  expect(bloomFor('high', undefined)).toBeNull();
+  expect([TIER_SETTINGS.high.bloom, TIER_SETTINGS.mid.bloom, TIER_SETTINGS.low.bloom]).toEqual([true, true, false]);
+});
+```
+
+Run: `npx vitest run tests/unit/tier.test.js`
+Expected: FAIL, because `bloomFor` is not exported.
+
+- [ ] **Step 2: Add the tier setting**
+
+In `src/lib/tier.js`, replace the `TIER_SETTINGS` block with:
+```js
+export const TIER_SETTINGS = {
+  high: { dprCap: 2, particleScale: 1, bloom: true },
+  mid: { dprCap: 1.5, particleScale: 0.5, bloom: true },
+  low: { dprCap: 1, particleScale: 0.2, bloom: false },
+};
+
+// A world's bloom request ({ strength, radius, threshold }) when its tier allows bloom, otherwise null.
+// The low tier never blooms (spec §8.1).
+export function bloomFor(tier, request) {
+  if (!request) return null;
+  return (TIER_SETTINGS[tier] || TIER_SETTINGS.mid).bloom ? request : null;
+}
+```
+
+Run: `npx vitest run tests/unit/tier.test.js`
+Expected: PASS.
+
+- [ ] **Step 3: Write `src/stage/bloom.js`**
+
+```js
+import { Vector2 } from 'three';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+// Glow for worlds that ask for it. It blooms a render target in place: when it isn't rendering to the screen,
+// UnrealBloomPass blends its result back onto the target it read. The pass and its half-float targets are made on
+// first use, so a visit that never reaches a blooming world never pays for them.
+export function createBloom() {
+  let pass = null;
+  let width = 1;
+  let height = 1;
+  return {
+    resize(w, h) {
+      width = w;
+      height = h;
+      if (pass) pass.setSize(w, h);
+    },
+    apply(renderer, target, { strength = 1, radius = 0.5, threshold = 0 } = {}) {
+      if (!pass) pass = new UnrealBloomPass(new Vector2(width, height), strength, radius, threshold);
+      pass.strength = strength;
+      pass.radius = radius;
+      pass.threshold = threshold;
+      pass.render(renderer, null, target, 0, false);
+    },
+    dispose() {
+      if (pass) pass.dispose();
+      pass = null;
+    },
+  };
+}
+```
+
+- [ ] **Step 4: Give the compositor a post hook and a single-world path**
+
+Replace the whole of `src/stage/transition.js` with:
+```js
+import * as THREE from 'three';
+
+const vertexShader = /* glsl */ `
+varying vec2 vUv;
+void main() {
+  vUv = position.xy * 0.5 + 0.5;
+  gl_Position = vec4(position.xy, 0.0, 1.0);
+}`;
+
+const fragmentShader = /* glsl */ `
+uniform sampler2D tFrom;
+uniform sampler2D tTo;
+uniform float uT;
+varying vec2 vUv;
+vec3 zoom(sampler2D tex, vec2 uv, float strength) {
+  vec2 dir = uv - 0.5;
+  vec3 acc = vec3(0.0);
+  for (int i = 0; i < 16; i++) {
+    float k = float(i) / 15.0;
+    acc += texture2D(tex, uv - dir * strength * k).rgb;
+  }
+  return acc / 16.0;
+}
+void main() {
+  float pulse = sin(3.14159265 * uT);
+  float strength = pulse * 0.45;
+  float m = smoothstep(0.3, 0.7, uT);
+  vec3 col = mix(zoom(tFrom, vUv, strength), zoom(tTo, vUv, strength), m);
+  col += pulse * 0.06;
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+const copyShader = /* glsl */ `
+uniform sampler2D tFrom;
+varying vec2 vUv;
+void main() {
+  gl_FragColor = vec4(texture2D(tFrom, vUv).rgb, 1.0);
+}`;
+
+// Renders worlds to textures and puts them on screen. render() blends two with a radial zoom-blur that peaks
+// halfway. single() draws one world through a texture. Both run post(world, target) on each world's texture first;
+// the stage uses it for bloom.
+export function createCompositor(renderer) {
+  const rtA = new THREE.WebGLRenderTarget(1, 1);
+  const rtB = new THREE.WebGLRenderTarget(1, 1);
+  const blend = new THREE.ShaderMaterial({
+    vertexShader,
+    fragmentShader,
+    uniforms: { tFrom: { value: rtA.texture }, tTo: { value: rtB.texture }, uT: { value: 0 } },
+    depthTest: false,
+    depthWrite: false,
+  });
+  const copy = new THREE.ShaderMaterial({ vertexShader, fragmentShader: copyShader, uniforms: { tFrom: { value: rtA.texture } }, depthTest: false, depthWrite: false });
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
+  const quad = new THREE.Mesh(geometry, blend);
+  quad.frustumCulled = false;
+  const scene = new THREE.Scene();
+  scene.add(quad);
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+  const toTexture = (world, target, post) => {
+    renderer.setRenderTarget(target);
+    renderer.render(world.scene, world.camera);
+    post(world, target);
+  };
+  const toScreen = (material) => {
+    quad.material = material;
+    renderer.setRenderTarget(null);
+    renderer.render(scene, camera);
+  };
+
+  return {
+    resize(width, height) { rtA.setSize(width, height); rtB.setSize(width, height); },
+    render(from, to, t, post = () => {}) {
+      toTexture(from, rtA, post);
+      toTexture(to, rtB, post);
+      blend.uniforms.uT.value = t;
+      toScreen(blend);
+    },
+    single(world, post = () => {}) {
+      toTexture(world, rtA, post);
+      toScreen(copy);
+    },
+    dispose() { rtA.dispose(); rtB.dispose(); blend.dispose(); copy.dispose(); geometry.dispose(); },
+  };
+}
+```
+
+- [ ] **Step 5: Bloom the worlds that ask for it**
+
+In `src/stage/stage.js`:
+1. Change `import { pickTier, TIER_SETTINGS } from '../lib/tier.js';` to:
+   ```js
+   import { pickTier, TIER_SETTINGS, bloomFor } from '../lib/tier.js';
+   import { createBloom } from './bloom.js';
+   ```
+2. On the line after `const compositor = createCompositor(renderer);`, add:
+   ```js
+   const bloom = createBloom();
+   let bloomBroken = false;
+   ```
+3. In `resize()`, on the line after `compositor.resize(Math.round(width * dpr), Math.round(height * dpr));`, add:
+   ```js
+   bloom.resize(Math.round(width * dpr), Math.round(height * dpr));
+   ```
+4. Directly above `function frame({ time, delta, state, pointer }) {`, add:
+   ```js
+   // Bloom for worlds that ask for it (world.bloom = { strength, radius, threshold }) on tiers that allow it.
+   // If bloom ever fails, the page carries on without it.
+   const wantsBloom = (world) => !bloomBroken && bloomFor(tier, world.bloom) !== null;
+   function glow(world, target) {
+     if (!wantsBloom(world)) return;
+     try {
+       bloom.apply(renderer, target, bloomFor(tier, world.bloom));
+     } catch (err) {
+       bloomBroken = true;
+       console.warn('[stage] bloom failed; carrying on without it.', err);
+     }
+   }
+   function present(world) {
+     if (wantsBloom(world)) compositor.single(world, glow);
+     else { renderer.setRenderTarget(null); renderer.render(world.scene, world.camera); }
+   }
+   ```
+5. In `frame()`, replace these four lines:
+   ```js
+       if (A && B) compositor.render(A, B, state.transition);
+       else if (A) { renderer.setRenderTarget(null); renderer.render(A.scene, A.camera); }
+       else if (B) { renderer.setRenderTarget(null); renderer.render(B.scene, B.camera); }
+       else { renderer.setRenderTarget(null); renderer.clear(); }
+   ```
+   with:
+   ```js
+       if (A && B) compositor.render(A, B, state.transition, glow);
+       else if (A || B) present(A || B);
+       else { renderer.setRenderTarget(null); renderer.clear(); }
+   ```
+
+No world asks for bloom yet, so every chapter must look and behave exactly as before. Task 5's Pico world is the first to use it, and its test checks the bloom.
+
+- [ ] **Step 6: Run the tests**
+
+Run: `npm test`
+Expected: all PASS.
+
+Run: `npx playwright test tests/e2e/stage.spec.js tests/e2e/picture.spec.js tests/e2e/halcyon-world.spec.js tests/e2e/dead-tired-world.spec.js`
+Expected: all PASS.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/lib/tier.js src/stage/bloom.js src/stage/transition.js src/stage/stage.js tests/unit/tier.test.js
+git commit -m "feat: let a world ask the stage for bloom (high and mid tiers only)" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 5: The Pico world
+
+**Files:**
+- Create: `src/worlds/pico.js`, `tests/e2e/pico-world.spec.js`
+- Modify: `src/worlds/names.js` (add `'pico'`), `src/content/projects.js` (Pico's `world`; drop its `worldOptions`)
+
+**Interfaces:**
+- Consumes:
+  - `sharedPlayer()` and its `advance(seconds, 'world')` and `state.colours` (Task 3);
+  - `NUM_LEDS` (Task 1);
+  - the stage's optional `bloom` (Task 4);
+  - the stage contract `create(ctx, options)` → `{ scene, camera, update, resize, dispose }`.
+- Produces:
+  - the default export `{ name: 'pico', create }`, which needs no options and no asset files;
+  - `bloom: { strength: 1.1, radius: 0.55, threshold: 0.12 }` on the world object.
+- Context:
+  - `THREE.ColorManagement` is disabled globally, so colours pass through raw.
+  - Still mode's 90 frames of 1/30 s advance the show about 150 frames. That is the end of the power-up rainbow, crossfading into rainbow glitter, so the poster is lit.
+  - `boot.py`'s pixel values can, in rare cases, dip below 0 (see Task 1). The world clamps them to 0–255 before drawing.
+
+- [ ] **Step 1: Write the failing browser test**
+
+`tests/e2e/pico-world.spec.js`:
+```js
+import { test, expect } from '@playwright/test';
+import sharp from 'sharp';
+
+const scrollToId = (page, id) => page.evaluate((el) => document.getElementById(el).scrollIntoView({ block: 'start' }), id);
+
+test('the Pico chapter runs the light-show world', async ({ page }) => {
+  const errors = [];
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  await page.goto('./');
+  await expect(page.locator('#pico-light-show')).toHaveAttribute('data-world', 'pico');
+  await scrollToId(page, 'pico-light-show');
+  await expect(page.locator('#pico-light-show')).toHaveClass(/is-live/, { timeout: 30_000 });
+  expect(errors).toEqual([]);
+});
+
+test('still mode renders the light show for its poster, and blooms it on the high tier only', async ({ page }) => {
+  const brightness = async (tier) => {
+    await page.goto(`./?still=pico-light-show&p=0.85&tier=${tier}`);
+    await expect(page.locator('html')).toHaveAttribute('data-still-ready', '1', { timeout: 60_000 });
+    const { channels } = await sharp(await page.screenshot()).greyscale().stats();
+    return channels[0].mean;
+  };
+  const low = await brightness('low');
+  const high = await brightness('high');
+  expect(high).toBeGreaterThan(low + 1); // bloom adds light around every lit LED
+});
+```
+
+Run: `npx playwright test tests/e2e/pico-world.spec.js`
+Expected: FAIL, because `data-world` is still `picture`.
+
+- [ ] **Step 2: Implement `src/worlds/pico.js`**
+
+```js
+import * as THREE from 'three';
+import { NUM_LEDS } from '../lib/led/maths.js';
+import { sharedPlayer } from '../lib/led/player.js';
+
+// Oscar's 20-LED strip on a gentle curve, lit frame by frame by the port of his boot.py (src/lib/led/). Each LED is
+// an instanced sphere in the colour boot.py computes, with a soft halo; the stage's bloom (high and mid tiers)
+// adds the glow on top. The show is the page's shared player: this world drives it while the chapter is live, and
+// the page's controls (src/ui/light-show.js) pick effects and pause it.
+const LED_RADIUS = 0.055;
+const HALO_SIZE = 0.5; // world units across a fully lit LED's halo
+const STRIP_HALF_WIDTH = 2.05; // half the strip's width, ends included, for fitting it on screen
+const BLOOM = { strength: 1.1, radius: 0.55, threshold: 0.12 };
+
+const haloVertex = /* glsl */ `
+attribute vec3 aColor;
+uniform float uScale;
+varying vec3 vColor;
+void main() {
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  gl_Position = projectionMatrix * mv;
+  float lit = max(aColor.r, max(aColor.g, aColor.b));
+  gl_PointSize = uScale * (0.3 + 0.7 * lit) / -mv.z;
+  vColor = aColor;
+}`;
+
+const haloFragment = /* glsl */ `
+varying vec3 vColor;
+void main() {
+  vec2 d = gl_PointCoord - 0.5;
+  float r = dot(d, d) * 4.0; // 0 at the centre, 1 at the edge
+  if (r > 1.0) discard;
+  float a = 1.0 - r;
+  gl_FragColor = vec4(vColor * a * a * 0.6, 1.0);
+}`;
+
+// A flat ribbon following the curve: the flexible strip the LEDs are soldered to.
+function ribbon(curve, height, samples = 96) {
+  const positions = [];
+  const index = [];
+  for (let k = 0; k < samples; k++) {
+    const p = curve.getPointAt(k / (samples - 1));
+    positions.push(p.x, p.y - height / 2, p.z, p.x, p.y + height / 2, p.z);
+    if (k > 0) {
+      const a = (k - 1) * 2;
+      index.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(index);
+  return geometry;
+}
+
+export default {
+  name: 'pico',
+  async create() {
+    const player = sharedPlayer();
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-1.95, -0.05, -0.45),
+      new THREE.Vector3(-1.0, 0.1, 0.05),
+      new THREE.Vector3(0, 0, 0.25),
+      new THREE.Vector3(1.0, -0.1, 0.05),
+      new THREE.Vector3(1.95, 0.05, -0.45),
+    ]);
+    const at = Array.from({ length: NUM_LEDS }, (_, i) => curve.getPointAt(0.03 + (0.94 * i) / (NUM_LEDS - 1)));
+
+    const stripGeometry = ribbon(curve, 0.2);
+    const stripMaterial = new THREE.MeshBasicMaterial({ color: '#141414', side: THREE.DoubleSide });
+    const packageGeometry = new THREE.BoxGeometry(0.13, 0.13, 0.03);
+    const packageMaterial = new THREE.MeshBasicMaterial({ color: '#34322e' });
+    const packages = new THREE.InstancedMesh(packageGeometry, packageMaterial, NUM_LEDS);
+    const ledGeometry = new THREE.SphereGeometry(LED_RADIUS, 20, 14);
+    const ledMaterial = new THREE.MeshBasicMaterial();
+    const leds = new THREE.InstancedMesh(ledGeometry, ledMaterial, NUM_LEDS);
+    const matrix = new THREE.Matrix4();
+    const unlit = new THREE.Color(0.07, 0.07, 0.07);
+    at.forEach((p, i) => {
+      packages.setMatrixAt(i, matrix.makeTranslation(p.x, p.y, p.z + 0.016)); // on the strip
+      leds.setMatrixAt(i, matrix.makeTranslation(p.x, p.y, p.z + 0.045)); // in front of its package
+      leds.setColorAt(i, unlit);
+    });
+
+    const haloPositions = new Float32Array(NUM_LEDS * 3);
+    at.forEach((p, i) => haloPositions.set([p.x, p.y, p.z + 0.05], i * 3));
+    const haloColours = new Float32Array(NUM_LEDS * 3);
+    const haloGeometry = new THREE.BufferGeometry();
+    haloGeometry.setAttribute('position', new THREE.BufferAttribute(haloPositions, 3));
+    haloGeometry.setAttribute('aColor', new THREE.BufferAttribute(haloColours, 3));
+    const haloUniforms = { uScale: { value: 1 } };
+    const haloMaterial = new THREE.ShaderMaterial({ vertexShader: haloVertex, fragmentShader: haloFragment, uniforms: haloUniforms, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    const halos = new THREE.Points(haloGeometry, haloMaterial);
+    halos.frustumCulled = false;
+    halos.renderOrder = 1;
+
+    const strip = new THREE.Group();
+    strip.add(new THREE.Mesh(stripGeometry, stripMaterial), packages, leds, halos);
+    strip.rotation.set(0.43, -0.5, 0); // the pose at progress 0, so the strip doesn't swing round when the chapter opens
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#090909');
+    scene.add(strip);
+    const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 50);
+    camera.position.set(0, 0.35, 4.6);
+    camera.lookAt(0, 0, 0);
+
+    const colour = new THREE.Color();
+    const level = (v) => Math.max(0, Math.min(255, v)) / 255; // boot.py never clamps below 0
+    let shownFrame = -1;
+    function paint(colours) {
+      colours.forEach(([r, g, b], i) => {
+        const R = level(r);
+        const G = level(g);
+        const B = level(b);
+        leds.setColorAt(i, colour.setRGB(0.07 + 0.93 * R, 0.07 + 0.93 * G, 0.07 + 0.93 * B)); // an unlit LED is a dim grey bead
+        haloColours.set([R, G, B], i * 3);
+      });
+      leds.instanceColor.needsUpdate = true;
+      haloGeometry.attributes.aColor.needsUpdate = true;
+    }
+    paint(player.state.colours);
+
+    return {
+      scene,
+      camera,
+      bloom: BLOOM,
+      update({ delta, progress, pointer }) {
+        const state = player.advance(delta, 'world');
+        if (state.frame !== shownFrame) {
+          shownFrame = state.frame;
+          paint(state.colours);
+        }
+        const a = Math.min(1, progress / 0.6); // turned to show the curve at 0, facing you by 0.6
+        const e = a * a * (3 - 2 * a);
+        const turn = -0.5 * (1 - e) + pointer.x * 0.2;
+        const tilt = 0.08 + 0.35 * (1 - e) + pointer.y * 0.1;
+        strip.rotation.y += (turn - strip.rotation.y) * 0.06;
+        strip.rotation.x += (tilt - strip.rotation.x) * 0.06;
+      },
+      resize(width, height, dpr) {
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+        const halfH = tanHalf * camera.position.z;
+        const halfW = halfH * camera.aspect;
+        const fit = Math.min(1, (halfW * 0.9) / STRIP_HALF_WIDTH);
+        strip.scale.setScalar(fit);
+        strip.position.y = halfH * (camera.aspect < 0.8 ? 0.3 : 0.2); // keep the strip above the bottom-left title
+        haloUniforms.uScale.value = (HALO_SIZE * fit * height * dpr) / (2 * tanHalf);
+      },
+      dispose() {
+        [stripGeometry, packageGeometry, ledGeometry, haloGeometry].forEach((g) => g.dispose());
+        [stripMaterial, packageMaterial, ledMaterial, haloMaterial].forEach((m) => m.dispose());
+        packages.dispose();
+        leds.dispose();
+      },
+    };
+  },
+};
+```
+
+- [ ] **Step 3: Register the world and switch Pico to it**
+
+In `src/worlds/names.js`, add `'pico'` to the end of `WORLD_NAMES`. The world needs no files, so it gets no `WORLD_ASSETS` entry.
+
+In `src/content/projects.js`, in the `pico-light-show` entry:
+- change `world: 'picture',` to `world: 'pico',`;
+- delete the `worldOptions: { cover: 'cover.webp', palette: [...] },` line.
+
+`cover.webp` stays, because the entry's `media` still shows it as an illustration. Leave every other field as it is.
+
+- [ ] **Step 4: Run the tests**
+
+Run: `npm test`
+Expected: all PASS. The registry test finds `src/worlds/pico.js`, and `npm run check` prints `Content OK: 4 projects.`
+
+Run: `npx playwright test tests/e2e/pico-world.spec.js tests/e2e/picture.spec.js tests/e2e/site.spec.js`
+Expected: all PASS. Add a temporary `console.log` to record the low-tier and high-tier mean brightness from the bloom test in your report, then remove it before committing. The high-tier mean should be clearly brighter. If the difference is under 2, say so in your report.
+
+- [ ] **Step 5: Look at it**
+
+Write a throwaway Playwright script in this plan's SDD workspace `scratch/` folder, which is gitignored.
+- **Server and browser:** run it against `npx vite preview --port 4175 --strictPort` after `npm run build`. Launch with `tools/lib/browser.mjs`'s `launch()` (Edge + SwiftShader).
+- **Scroll position:** move to the Pico chapter at a fraction `f` of its intro track: `top = section.getBoundingClientRect().top + scrollY + (section.querySelector('.scene__track').offsetHeight - innerHeight) * f`.
+- **Before each shot:** wait for `#pico-light-show.is-live`, then about 3 s.
+- **Shots:**
+  - 1440×900 with `?tier=high`, at 0.1 and 0.8;
+  - 1440×900 with `?tier=low`, at 0.8;
+  - 375×812 with `?tier=high`, at 0.1 and 0.8.
+
+Stop the server and view the screenshots with the Read tool. Check that:
+- the 20 LEDs read as a strip on a gentle curve, glowing in `boot.py`'s colours, with the dark strip and the LED packages visible;
+- at 0.1 the strip is turned to show its curve, and at 0.8 it faces you;
+- the high tier visibly blooms and the low tier doesn't, though its halos still glow;
+- the chapter title stays readable below the strip;
+- on the phone, all 20 LEDs are on screen above the title.
+
+If something reads badly, tune only these, and report what you changed:
+- `HALO_SIZE`, `LED_RADIUS` and `BLOOM`;
+- the curve's points;
+- the turn and tilt amounts;
+- the fit factor and the lift in `resize`;
+- the strip and package colours.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/worlds/pico.js src/worlds/names.js src/content/projects.js tests/e2e/pico-world.spec.js
+git commit -m "feat: add the Pico world, a 20-LED strip lit by the boot.py port with bloom" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 6: The light-show controls and the live code panel
+
+**Files:**
+- Create: `src/ui/light-show.js`, `tests/e2e/pico-ui.spec.js`
+- Modify:
+  - `src/content/render.js`: code media gets one span per line;
+  - `src/content/validate.js`: adds `live`;
+  - `src/content/projects.js`: the Pico code panel;
+  - `src/app.js`: starts the controls;
+  - `src/styles/chapter.css`;
+  - `tests/unit/render.test.js` and `tests/unit/validate.test.js`.
+
+**Interfaces:**
+- Consumes:
+  - `sharedPlayer()` with `state`, `playing`, `advance(seconds, 'page')`, `select`, `play`, `pause` and `subscribe` (Task 3);
+  - `createHighlighter` (Task 3);
+  - `EFFECTS` and `POWER_UP` with `name`, `label`, `lines` and `restLine` (Task 2);
+  - `NUM_LEDS` (Task 1).
+  - The Pico chapter is `section#pico-light-show.scene[data-world="pico"]` (Task 5). Its intro text ends with `.chapter__hook` inside `.scene__frame`.
+  - The plugin (`plugins/chapters.js`, M1) passes a code media item's text as `m.code`. That text is the file sliced to `m.lines` with `\r?\n` split, and joined with `\n`.
+- Produces:
+  - Code media render as `<figure class="media media--code"[ data-live]><pre …><code>` with one `<span class="code-line" data-line="N">` per line. N counts from `m.lines[0]`, or from 1.
+  - A media item's `live: true` is allowed only on code media.
+  - `createLightShow({ doc, reduced })` returns `null` when the page has no pico chapter, and otherwise `{ player, controls }`.
+  - DOM, built by JS:
+    - `.lightshow` (`role="group"`, `aria-label="Light show"`) after the hook. It holds the play/pause button `.lightshow__play` (text `Pause` or `Play`) and six `.chip` buttons with `aria-pressed`.
+    - `.lightshow__now`, at the top of the live code figure. It holds `.lightshow__strip` (20 `<i>` dots, `aria-hidden`) and `.lightshow__name` (the playing effect's `boot.py` name).
+    - `.code-line.is-running` marks the highlighted line.
+
+- [ ] **Step 1: Write the failing unit tests**
+
+Append to the `describe` block in `tests/unit/render.test.js` that holds the existing `'escapes code'` test:
+```js
+  it('numbers code lines from the first line shown, and marks live panels', () => {
+    const html = renderMedia({ type: 'code', src: 'a.py', lines: [10, 11], code: 'a = 1\nb < 2', live: true }, project(), '/');
+    expect(html).toContain('<figure class="media media--code" data-live>');
+    expect(html).toContain('<span class="code-line" data-line="10">a = 1</span>\n<span class="code-line" data-line="11">b &lt; 2</span>');
+    expect(renderMedia({ type: 'code', src: 'a.py', code: 'x\r\ny' }, project(), '/')).toContain('<span class="code-line" data-line="1">x</span>\n<span class="code-line" data-line="2">y</span>');
+  });
+```
+
+Append inside the `describe('validateProjects', …)` block in `tests/unit/validate.test.js`:
+```js
+  it('only lets code media be live, and live is true or false', () => {
+    expect(errorsFor({ media: [{ type: 'code', src: 'a.py', live: 'yes' }] })[0]).toMatch(/"live" is true or false, and only for code media/);
+    expect(errorsFor({ media: [{ type: 'image', src: 'shot.webp', alt: 'A shot', live: true }] })[0]).toMatch(/only for code media/);
+    expect(errorsFor({ media: [{ type: 'code', src: 'a.py', live: true }] })).toEqual([]);
+  });
+```
+
+Run: `npx vitest run tests/unit/render.test.js tests/unit/validate.test.js`
+Expected: the two new tests FAIL.
+
+- [ ] **Step 2: Render numbered code lines and validate `live`**
+
+In `src/content/render.js`, replace the `case 'code':` line and its `return` line with:
+```js
+    case 'code': {
+      // One span per line, numbered as in the source file, so the light show can highlight the line it's running.
+      const first = m.lines ? m.lines[0] : 1;
+      const lines = (m.code ?? '').split(/\r?\n/).map((text, i) => `<span class="code-line" data-line="${first + i}">${escapeHtml(text)}</span>`).join('\n');
+      return `<figure class="media media--code"${m.live ? ' data-live' : ''}><pre tabindex="0" data-lenis-prevent><code>${lines}</code></pre>${figcaption(m)}</figure>`;
+    }
+```
+
+In `src/content/validate.js`, inside `p.media.forEach`, add this directly after the code `lines` check:
+```js
+      if (m.live !== undefined && (m.type !== 'code' || typeof m.live !== 'boolean')) fail(`${at}: "live" is true or false, and only for code media`);
+```
+
+Run: `npx vitest run tests/unit/render.test.js tests/unit/validate.test.js`
+Expected: PASS.
+
+- [ ] **Step 3: Write the failing browser tests**
+
+`tests/e2e/pico-ui.spec.js`:
+```js
+import { test, expect } from '@playwright/test';
+
+const scrollToId = (page, id) => page.evaluate((el) => document.getElementById(el).scrollIntoView({ block: 'start' }), id);
+const dots = (page) => page.locator('#pico-light-show .lightshow__strip i').evaluateAll((els) => els.map((el) => el.style.backgroundColor).join('|'));
+
+test('the chips pick an effect, and the code panel follows without moving the page', async ({ page }) => {
+  await page.goto('./');
+  await scrollToId(page, 'pico-light-show');
+  const show = page.locator('#pico-light-show');
+  await expect(show).toHaveClass(/is-live/, { timeout: 30_000 });
+  await expect(show.locator('.lightshow .chip')).toHaveCount(6);
+  const y = await page.evaluate(() => scrollY);
+  await show.getByRole('button', { name: 'Fire' }).click();
+  await expect(show.getByRole('button', { name: 'Fire' })).toHaveAttribute('aria-pressed', 'true', { timeout: 5_000 });
+  await expect(show.locator('.lightshow__name')).toHaveText('fire');
+  const line = Number(await show.locator('.code-line.is-running').getAttribute('data-line'));
+  expect(line).toBeGreaterThanOrEqual(195);
+  expect(line).toBeLessThanOrEqual(220);
+  expect(Math.abs((await page.evaluate(() => scrollY)) - y)).toBeLessThan(2);
+});
+
+test('pause stops the show and play starts it again', async ({ page }) => {
+  await page.goto('./');
+  await scrollToId(page, 'pico-light-show');
+  const show = page.locator('#pico-light-show');
+  await expect(show).toHaveClass(/is-live/, { timeout: 30_000 });
+  await show.getByRole('button', { name: 'Pause' }).click();
+  const paused = await dots(page);
+  await page.waitForTimeout(600);
+  expect(await dots(page)).toBe(paused);
+  await show.getByRole('button', { name: 'Play' }).click();
+  await expect.poll(() => dots(page), { timeout: 5_000 }).not.toBe(paused);
+});
+
+test.describe('with reduced motion', () => {
+  test.use({ contextOptions: { reducedMotion: 'reduce' } });
+  test('nothing moves until Play is pressed, then the show runs without the 3D stage', async ({ page }) => {
+    await page.goto('./');
+    await scrollToId(page, 'pico-light-show');
+    const show = page.locator('#pico-light-show');
+    await expect(show.getByRole('button', { name: 'Play' })).toBeVisible();
+    const before = await dots(page);
+    await page.waitForTimeout(800);
+    expect(await dots(page)).toBe(before);
+    await expect(page.locator('html')).not.toHaveClass(/webgl/);
+    await show.getByRole('button', { name: 'Play' }).click();
+    await expect.poll(() => dots(page), { timeout: 5_000 }).not.toBe(before);
+    await expect(show.locator('.code-line.is-running')).toHaveCount(1);
+  });
+});
+
+test('without WebGL the show still runs on the dot strip', async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (type, ...rest) {
+      return /webgl/i.test(type) ? null : original.call(this, type, ...rest);
+    };
+  });
+  await page.goto('./');
+  await scrollToId(page, 'pico-light-show');
+  const before = await dots(page);
+  await expect.poll(() => dots(page), { timeout: 5_000 }).not.toBe(before);
+});
+```
+
+Run: `npx playwright test tests/e2e/pico-ui.spec.js`
+Expected: FAIL, because there are no chips yet.
+
+- [ ] **Step 4: Build the controls**
+
+`src/ui/light-show.js`:
+```js
+import { EFFECTS, POWER_UP } from '../lib/led/effects.js';
+import { NUM_LEDS } from '../lib/led/maths.js';
+import { sharedPlayer } from '../lib/led/player.js';
+import { createHighlighter } from '../lib/led/highlight.js';
+
+const byName = Object.fromEntries([POWER_UP, ...EFFECTS].map((e) => [e.name, e]));
+const channel = (v) => Math.max(0, Math.min(255, v));
+const rgb = ([r, g, b]) => `rgb(${channel(r)}, ${channel(g)}, ${channel(b)})`;
+
+// The Pico chapter's controls, built when the page has a chapter running the pico world:
+// - over the 3D strip: play/pause and one chip per effect;
+// - at the top of the live code panel: the effect that's playing and a strip of 20 dots in the LEDs' colours
+//   (with no 3D world, for example under reduced motion, this is where you watch the show);
+// - in the code panel: the boot.py line the show is running, highlighted.
+// The page's own loop drives the shared player while the chapter is on screen; the player ignores it whenever the
+// 3D world is driving (see player.js).
+export function createLightShow({ doc, reduced = false }) {
+  const chapter = doc.querySelector('.scene[data-world="pico"]');
+  if (!chapter) return null;
+  const win = doc.defaultView;
+  const player = sharedPlayer();
+  if (reduced) player.pause(); // spec §8.2: demos only run when the visitor presses play
+
+  const button = (className, text) => {
+    const el = doc.createElement('button');
+    el.type = 'button';
+    el.className = className;
+    el.textContent = text;
+    return el;
+  };
+  const controls = doc.createElement('div');
+  controls.className = 'lightshow';
+  controls.setAttribute('role', 'group');
+  controls.setAttribute('aria-label', 'Light show');
+  const playButton = button('lightshow__play', 'Pause');
+  playButton.addEventListener('click', () => (player.playing ? player.pause() : player.play()));
+  const chips = EFFECTS.map((effect, index) => {
+    const chip = button('chip', effect.label);
+    chip.dataset.effect = effect.name;
+    chip.setAttribute('aria-pressed', 'false');
+    chip.addEventListener('click', () => player.select(index));
+    return chip;
+  });
+  controls.append(playButton, ...chips);
+  chapter.querySelector('.chapter__hook').after(controls);
+
+  const figure = chapter.querySelector('.media--code[data-live]');
+  const pre = figure ? figure.querySelector('pre') : null;
+  const lineEls = new Map(pre ? Array.from(pre.querySelectorAll('.code-line'), (el) => [Number(el.dataset.line), el]) : []);
+  let dots = [];
+  let nameEl = null;
+  if (figure) {
+    const now = doc.createElement('div');
+    now.className = 'lightshow__now';
+    const strip = doc.createElement('span');
+    strip.className = 'lightshow__strip';
+    strip.setAttribute('aria-hidden', 'true');
+    dots = Array.from({ length: NUM_LEDS }, () => strip.appendChild(doc.createElement('i')));
+    nameEl = doc.createElement('span');
+    nameEl.className = 'lightshow__name mono';
+    now.append(strip, nameEl);
+    figure.prepend(now);
+  }
+
+  // Scrolls the code box itself, never the page.
+  const reveal = (el, atTop) => {
+    if (!pre || !el) return;
+    const outside = el.offsetTop < pre.scrollTop || el.offsetTop + el.offsetHeight > pre.scrollTop + pre.clientHeight;
+    if (atTop || outside) pre.scrollTop = Math.max(0, el.offsetTop - (atTop ? 8 : pre.clientHeight / 3));
+  };
+
+  const pick = createHighlighter();
+  let shownPlaying = null;
+  let shownEffect = null;
+  let shownFrame = -1;
+  let shownLine = null;
+  function render(state) {
+    if (player.playing !== shownPlaying) {
+      shownPlaying = player.playing;
+      playButton.textContent = player.playing ? 'Pause' : 'Play';
+    }
+    if (state.effect !== shownEffect) {
+      shownEffect = state.effect;
+      chips.forEach((chip) => chip.setAttribute('aria-pressed', String(chip.dataset.effect === state.effect)));
+      if (nameEl) nameEl.textContent = state.effect;
+      reveal(lineEls.get(byName[state.effect].lines[0]), true);
+    }
+    if (state.frame !== shownFrame) {
+      shownFrame = state.frame;
+      state.colours.forEach((c, i) => { if (dots[i]) dots[i].style.backgroundColor = rgb(c); });
+    }
+    const line = pick(state.line, byName[state.effect].restLine, win.performance.now());
+    if (line !== shownLine) {
+      lineEls.get(shownLine)?.classList.remove('is-running');
+      shownLine = line;
+      const el = lineEls.get(line);
+      if (el) {
+        el.classList.add('is-running');
+        reveal(el, false);
+      }
+    }
+  }
+  player.subscribe(render);
+  render(player.state);
+
+  // The page's loop: runs while the chapter is on screen and the tab is visible.
+  let raf = 0;
+  let last = 0;
+  let onScreen = false;
+  const loop = (time) => {
+    raf = win.requestAnimationFrame(loop);
+    const seconds = last ? Math.min(0.1, (time - last) / 1000) : 0;
+    last = time;
+    player.advance(seconds, 'page');
+  };
+  const run = () => {
+    if (onScreen && !doc.hidden && !raf) {
+      last = 0;
+      raf = win.requestAnimationFrame(loop);
+    }
+  };
+  const stop = () => {
+    if (raf) win.cancelAnimationFrame(raf);
+    raf = 0;
+  };
+  if ('IntersectionObserver' in win) {
+    new win.IntersectionObserver(([entry]) => {
+      onScreen = entry.isIntersecting;
+      if (onScreen) run();
+      else stop();
+    }).observe(chapter);
+  } else {
+    onScreen = true;
+    run();
+  }
+  doc.addEventListener('visibilitychange', () => (doc.hidden ? stop() : run()));
+  return { player, controls };
+}
+```
+
+In `src/app.js`:
+- change `import { autoplayVideos } from './ui/media.js';` to:
+  ```js
+  import { autoplayVideos } from './ui/media.js';
+  import { createLightShow } from './ui/light-show.js';
+  ```
+- change `autoplayVideos(doc, { reduced });` to:
+  ```js
+  autoplayVideos(doc, { reduced });
+  createLightShow({ doc, reduced });
+  ```
+Still mode returns before this point, so posters never get controls. The world still drives the show for the poster.
+
+Append to `src/styles/chapter.css`:
+```css
+.lightshow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; max-width: 640px; }
+.lightshow button { padding: 9px 14px; border: 1px solid var(--faint); border-radius: 999px; background: rgba(9, 9, 9, 0.6); color: var(--paper); font: 500 12px/1 var(--font-mono); letter-spacing: 0.04em; cursor: pointer; }
+.lightshow button:hover { border-color: var(--paper); }
+.lightshow .chip[aria-pressed="true"] { background: var(--paper); border-color: var(--paper); color: var(--ink); }
+.lightshow__play { min-width: 74px; }
+.lightshow__now { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-bottom: 12px; color: var(--muted); font-size: 13px; }
+.lightshow__strip { display: inline-flex; gap: 4px; padding: 7px 9px; border-radius: 999px; background: #141414; }
+.lightshow__strip i { width: 9px; height: 9px; border-radius: 50%; background: #000; }
+.media--code pre { position: relative; }
+.code-line { display: inline-block; min-width: 100%; min-height: 1.6em; vertical-align: top; }
+.code-line.is-running { background: rgba(57, 208, 255, 0.16); box-shadow: inset 3px 0 0 #39d0ff; }
+```
+`position: relative` on the `pre` makes each line's `offsetTop` measure from the code box, which `reveal()` relies on. `min-height` keeps blank lines one line tall.
+
+In `src/content/projects.js`, in the `pico-light-show` entry, replace the code media item with:
+```js
+      { type: 'code', src: 'boot.py', lines: [106, 283], live: true, caption: 'The seven effects in boot.py. While the show plays, the line it’s running lights up.' },
+```
+
+- [ ] **Step 5: Run the tests**
+
+Run: `npm test`
+Expected: all PASS.
+
+Run: `npx playwright test tests/e2e/pico-ui.spec.js tests/e2e/pico-world.spec.js tests/e2e/site.spec.js tests/e2e/navigation.spec.js tests/e2e/stage.spec.js`
+Expected: all PASS. `site.spec.js` includes the 375 px no-sideways-scrolling check, so the chips must wrap.
+
+- [ ] **Step 6: Look at it**
+
+Reuse your Task 5 approach and save the screenshots in the same `scratch/` folder:
+- **1440×900, intro:** the Pico chapter's intro at 0.8, with the chips under the hook.
+- **375×812, intro:** the same view on a phone.
+- **1440×900, code panel:** scroll the live code figure into view after clicking the "Twin comets" chip.
+
+View them, and check that:
+- the chips wrap neatly and don't cover the title;
+- the pressed chip stands out;
+- the dot strip shows the LED colours;
+- the highlighted line is visible inside the code box;
+- blank code lines keep their height.
+
+Fix only CSS for anything wrong.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/ui/light-show.js src/app.js src/styles/chapter.css src/content/render.js src/content/validate.js src/content/projects.js tests/unit/render.test.js tests/unit/validate.test.js tests/e2e/pico-ui.spec.js
+git commit -m "feat: add the light-show chips, the dot strip and the live code panel" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 7: Posters, docs and a full check
+
+**Files:**
+- Modify: `CLAUDE.md`
+- Regenerated and committed: `public/posters/pico-light-show.webp` (the other five posters must come out byte-identical)
+
+**Interfaces:**
+- Consumes: everything above. `npm run posters` renders each scene in still mode at `?tier=high`.
+- Produces: the Pico poster of the lit, blooming strip, and an accurate CLAUDE.md.
+- Context: Pico's `cover.webp` stays, because it is still a media item. Unlike milestones 2 and 3, there is no cover to drop.
+
+- [ ] **Step 1: Regenerate the posters and look**
+
+Run: `npm run posters && npm run check:media`
+Expected: six `poster:` lines and no `[page]` errors; the metadata check passes.
+
+Run: `git status --short public/posters`
+Expected: only `public/posters/pico-light-show.webp` changed.
+
+Open `public/posters/pico-light-show.webp` with the Read tool. It should show the glowing strip of 20 LEDs in rainbow colours on the dark background.
+
+- [ ] **Step 2: Update CLAUDE.md**
+
+1. **Commands table.** Add this row after the `npm run layers:dead-tired` row:
+   ```
+   | `npm run led:reference` | Runs the real Pico `boot.py` under Python 3 and rewrites `tests/fixtures/boot-reference.json`, which the LED-port tests compare against (only needed if `boot.py` changes) |
+   ```
+2. **World interface code block.** Change `ready /* optional */,` to `ready /* optional */, bloom /* optional */,`.
+3. **The paragraph about `ready`.** After it, add: "`bloom` is optional too: `{ strength, radius, threshold }` asks the stage to bloom that world's frame, which it does on the high and mid tiers and never on low."
+4. **The `src/lib/` bullet.** Replace "- `src/lib/`: pure functions with unit tests." with: "- `src/lib/`: pure functions with unit tests. `src/lib/led/` is a frame-exact port of the Pico's `boot.py`: its maths, effects, light-show timeline and a player. The `pico` world and `src/ui/light-show.js` share one player."
+5. **The Status section.** Replace its paragraph with:
+   ```
+   Milestones 1 (shell), 2 (HALCYON world), 3 (DEAD TIRED world) and 4 (Pico Light Show world) are in place. HALCYON uses its own "halcyon" world; DEAD TIRED uses the reusable "layers" world (a design's layers, from a layers.json manifest, float apart and slide together); Pico Light Show uses the "pico" world (a 20-LED strip running the boot.py port, with bloom, effect chips and a live code panel); ASCII Mirror still uses the "picture" world; the hero uses "index" and the next slot uses "dormant". The custom world still to come is ASCII Mirror (5). Launch is milestone 6. Plans live in `docs/superpowers/plans/`.
+   ```
+
+- [ ] **Step 3: Run everything and review the screenshots**
+
+Run: `npm test && npm run test:e2e`
+Expected: everything passes. The full e2e run takes a few minutes; run it in the background and wait for it.
+
+Open these with the Read tool:
+- `screens/desktop-pico-light-show.png`
+- `screens/desktop-pico-light-show-panel.png`
+- `screens/mobile-pico-light-show.png`
+- `screens/mobile-pico-light-show-panel.png`
+
+Check that the title and chips are readable over the strip, the code panel and dot strip sit correctly, and nothing overflows on the phone. Fix only CSS for anything wrong, then rerun.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add CLAUDE.md public/posters
+git commit -m "chore: regenerate the Pico poster and update CLAUDE.md for the light-show world" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 8: Milestone review with Oscar
+
+**Files:** none, unless the review asks for fixes.
+
+- [ ] **Step 1: Check everything passes.** Run `npm test && npm run test:e2e && npm run check && npm run check:media`. Expected: all green.
+- [ ] **Step 2: Show Oscar the chapter.**
+  - Stop any running dev server, then start the preview with `preview_start` (name `portfolio-dev`, from `C:\Users\Oscar\Downloads\.claude\launch.json`).
+  - Scroll to the Pico chapter and watch the power-up intro. Click two chips, then scroll down to the code panel.
+  - Take screenshots and send the best two to Oscar with `SendUserFile`, then ask him to try it himself in the preview pane.
+- [ ] **Step 3: Ask for his verdict.**
+  - Ask Oscar whether the light show looks and feels right.
+  - Name the plan's deliberate readings of the spec:
+    - pre-gamma colours on screen;
+    - Play under reduced motion runs the dot strip;
+    - event lines hold for 0.4 s;
+    - a chip restarts the effect it names.
+  - Make the small fixes he asks for, rerun Step 1 and commit each fix.
+
+Milestone 4 is done when Oscar says it looks right.
