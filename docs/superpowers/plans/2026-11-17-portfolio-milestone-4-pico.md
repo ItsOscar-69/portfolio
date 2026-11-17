@@ -58,7 +58,9 @@
 - **Git identity:** commit with the existing global git identity. Never change git config.
 - **No pushing:** do not push and do not create a remote. Publishing is milestone 6.
 - **No third parties:** the built site makes no requests to third-party hosts.
-- **Look:** the site is dark only. The LEDs show exactly the colours `boot.py` computes.
+- **Look:** the site is dark only.
+  - Each LED's colour comes only from the port's frame, which matches `boot.py` exactly.
+  - The world may add a dim floor so an unlit LED reads as a grey bead, a soft halo, and bloom. It may not invent or change hues.
 - **Reduced motion:** no 3D stage and nothing animates by itself. The light show runs only after the visitor presses Play (spec §8.2).
 - **Base path and escaping:**
   - every URL written into HTML goes through `withBase()` with `BASE` from `site.config.js`;
@@ -1386,6 +1388,9 @@ Expected: all PASS.
 Run: `npx playwright test tests/e2e/stage.spec.js tests/e2e/picture.spec.js tests/e2e/halcyon-world.spec.js tests/e2e/dead-tired-world.spec.js`
 Expected: all PASS.
 
+Run: `npm run posters && git status --short public/posters`
+Expected: no output. No world asks for bloom yet, so every poster must come out byte-identical. If any poster changed, the new render path changed a world's look. Find out why before committing, and don't commit the changed posters.
+
 - [ ] **Step 7: Commit**
 
 ```bash
@@ -1435,10 +1440,13 @@ test('the Pico chapter runs the light-show world', async ({ page }) => {
 });
 
 test('still mode renders the light show for its poster, and blooms it on the high tier only', async ({ page }) => {
+  // Still mode hides the page's text, so the screenshot is the 3D frame alone. Measure the band the strip sits in.
   const brightness = async (tier) => {
     await page.goto(`./?still=pico-light-show&p=0.85&tier=${tier}`);
     await expect(page.locator('html')).toHaveAttribute('data-still-ready', '1', { timeout: 60_000 });
-    const { channels } = await sharp(await page.screenshot()).greyscale().stats();
+    const { width, height } = page.viewportSize();
+    const band = { left: 0, top: Math.round(height * 0.2), width, height: Math.round(height * 0.45) };
+    const { channels } = await sharp(await page.screenshot()).extract(band).greyscale().stats();
     return channels[0].mean;
   };
   const low = await brightness('low');
@@ -1517,7 +1525,14 @@ export default {
       new THREE.Vector3(1.0, -0.1, 0.05),
       new THREE.Vector3(1.95, 0.05, -0.45),
     ]);
-    const at = Array.from({ length: NUM_LEDS }, (_, i) => curve.getPointAt(0.03 + (0.94 * i) / (NUM_LEDS - 1)));
+    const along = Array.from({ length: NUM_LEDS }, (_, i) => 0.03 + (0.94 * i) / (NUM_LEDS - 1));
+    const at = along.map((u) => curve.getPointAt(u));
+    // The strip's front at each LED (the curve bends towards and away from you, so it isn't always +z).
+    const facing = along.map((u) => {
+      const t = curve.getTangentAt(u);
+      return new THREE.Vector3(-t.z, 0, t.x).normalize();
+    });
+    const inFront = (i, d) => at[i].clone().addScaledVector(facing[i], d);
 
     const stripGeometry = ribbon(curve, 0.2);
     const stripMaterial = new THREE.MeshBasicMaterial({ color: '#141414', side: THREE.DoubleSide });
@@ -1530,13 +1545,18 @@ export default {
     const matrix = new THREE.Matrix4();
     const unlit = new THREE.Color(0.07, 0.07, 0.07);
     at.forEach((p, i) => {
-      packages.setMatrixAt(i, matrix.makeTranslation(p.x, p.y, p.z + 0.016)); // on the strip
-      leds.setMatrixAt(i, matrix.makeTranslation(p.x, p.y, p.z + 0.045)); // in front of its package
+      const onStrip = inFront(i, 0.016);
+      packages.setMatrixAt(i, matrix.makeRotationY(Math.atan2(facing[i].x, facing[i].z)).setPosition(onStrip.x, onStrip.y, onStrip.z)); // turned with the strip
+      const bead = inFront(i, 0.045);
+      leds.setMatrixAt(i, matrix.makeTranslation(bead.x, bead.y, bead.z)); // in front of its package
       leds.setColorAt(i, unlit);
     });
 
     const haloPositions = new Float32Array(NUM_LEDS * 3);
-    at.forEach((p, i) => haloPositions.set([p.x, p.y, p.z + 0.05], i * 3));
+    at.forEach((p, i) => {
+      const glow = inFront(i, 0.05);
+      haloPositions.set([glow.x, glow.y, glow.z], i * 3);
+    });
     const haloColours = new Float32Array(NUM_LEDS * 3);
     const haloGeometry = new THREE.BufferGeometry();
     haloGeometry.setAttribute('position', new THREE.BufferAttribute(haloPositions, 3));
@@ -1628,7 +1648,13 @@ Run: `npm test`
 Expected: all PASS. The registry test finds `src/worlds/pico.js`, and `npm run check` prints `Content OK: 4 projects.`
 
 Run: `npx playwright test tests/e2e/pico-world.spec.js tests/e2e/picture.spec.js tests/e2e/site.spec.js`
-Expected: all PASS. Add a temporary `console.log` to record the low-tier and high-tier mean brightness from the bloom test in your report, then remove it before committing. The high-tier mean should be clearly brighter. If the difference is under 2, say so in your report.
+Expected: all PASS.
+
+Calibrate the bloom test, and prove it can fail:
+1. Add a temporary `console.log` of both means and run the test. Record the low-tier and high-tier means of the strip's band in your report.
+2. Temporarily delete the `bloom: BLOOM,` line from `src/worlds/pico.js` and run the test again. It must now FAIL. Put the output in your report, then restore the line.
+3. If the measured difference is under 2, say so in your report. Otherwise set the margin in `toBeGreaterThan(low + 1)` to about half the difference you measured.
+4. Remove the `console.log` before committing.
 
 - [ ] **Step 5: Look at it**
 
@@ -1650,6 +1676,7 @@ Stop the server and view the screenshots with the Read tool. Check that:
 
 If something reads badly, tune only these, and report what you changed:
 - `HALO_SIZE`, `LED_RADIUS` and `BLOOM`;
+- the halo material's `depthTest`, if the turned strip cuts halos off along the ribbon;
 - the curve's points;
 - the turn and tilt amounts;
 - the fit factor and the lift in `resize`;
