@@ -7,7 +7,8 @@
   },
   "scripts": {
     "halcyon": "node tools/halcyon.mjs",
-    "media": "node tools/copy-sources.mjs && node tools/halcyon.mjs && node tools/covers.mjs && node tools/capture-halcyon.mjs && node tools/publish-media.mjs && node tools/check-media.mjs",
+    "media": "node tools/copy-sources.mjs && node tools/halcyon.mjs && node tools/covers.mjs && node tools/capture-halcyon.mjs && node tools/publish-media.mjs && node tools/check-media.mjs && node tools/capture-halcyon-video.mjs",
+    "video:halcyon": "node tools/capture-halcyon-video.mjs",
     "check": "node tools/check-content.mjs",
     "posters": "vite build && node tools/posters.mjs",
     "to-webp": "node tools/to-webp.mjs",
@@ -30,6 +31,7 @@
     "@fontsource/ibm-plex-mono": "5.3.0",
     "@fontsource/noto-sans-jp": "5.3.1",
     "@playwright/test": "1.61.1",
+    "ffmpeg-static": "5.2.0",
     "sharp": "0.32.6",
     "vite": "6.4.1",
     "vitest": "3.2.4"

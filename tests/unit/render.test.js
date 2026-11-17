@@ -95,7 +95,9 @@ describe('renderMedia', () => {
     expect(renderMedia({ type: 'link', src: '/halcyon/', caption: 'Open' }, p, '/sub/')).toContain('href="/sub/halcyon/"');
   });
   it('renders video and model with their posters', () => {
-    expect(renderMedia({ type: 'video', src: 'c.mp4', poster: 'c.webp', alt: 'A' }, p, '/')).toContain('poster="/projects/demo/c.webp"');
+    const video = renderMedia({ type: 'video', src: 'c.mp4', poster: 'c.webp', alt: 'A' }, p, '/');
+    expect(video).toContain('poster="/projects/demo/c.webp"');
+    expect(video).toContain(' controls muted loop playsinline preload="none" data-autoplay');
     expect(renderMedia({ type: 'model', src: 'm.glb', poster: 'm.webp', alt: 'A' }, p, '/')).toContain('data-model="/projects/demo/m.glb"');
   });
   it('throws on unknown media types', () => {

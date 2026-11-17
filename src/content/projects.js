@@ -40,6 +40,7 @@ export const projects = [
       inside: 'Plain HTML, CSS and JavaScript. Michroma and IBM Plex Mono type, clip-path panels, a pointer-tilt effect, and Node tests for the helper functions.',
     },
     media: [
+      { type: 'video', src: 'screen.mp4', poster: 'screen-poster.webp', alt: 'A screen recording of the HALCYON SOMATICS page: the boot sequence, the decrypting headline, then a scroll down to SERAPH-9', caption: 'The boot sequence and decrypting headline, recorded live.' },
       { type: 'image', src: 'shot-hero.webp', alt: 'The HALCYON SOMATICS homepage: a wireframe body with callouts beside the headline "Perfection, installed."', caption: 'The hero: a wireframe body, callouts and a headline that decrypts itself.' },
       { type: 'image', src: 'shot-seraph.webp', alt: 'The SERAPH-9 implant spec plate on the HALCYON SOMATICS page', caption: 'SERAPH-9, the flagship implant, with its spec plate.' },
       { type: 'image', src: 'shot-terms.webp', alt: 'The "Terms of installation" section of the HALCYON SOMATICS page', caption: 'The terms of installation nobody reads.' },
