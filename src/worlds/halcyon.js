@@ -142,22 +142,26 @@ export default {
     const bodyHalfWidth = (shape.width / 2) * k;
 
     // Panels are decoration: they load in the background and attach as they arrive; one that fails is skipped.
-    (options.panels || []).slice(0, PANEL_LAYOUT.length).forEach((url, i) => {
-      loadPanelTexture(url).then((loaded) => {
-        const panel = makePanel(loaded);
-        if (disposed) { panel.dispose(); return; }
-        const at = PANEL_LAYOUT[i];
-        panel.group.position.set(at.x, at.y, at.z);
-        panel.group.rotation.y = at.ry;
-        panel.layout = at;
-        panels.push(panel);
-        panelGroup.add(panel.group);
-      }, () => console.warn(`[halcyon] panel ${url} failed to load; skipping it.`));
-    });
+    // `ready` settles once every panel has attached or failed, so still mode (posters) can wait for them.
+    const panelLoads = (options.panels || []).slice(0, PANEL_LAYOUT.length).map((url, i) =>
+      loadPanelTexture(url)
+        .then((loaded) => {
+          const panel = makePanel(loaded);
+          if (disposed) { panel.dispose(); return; }
+          const at = PANEL_LAYOUT[i];
+          panel.group.position.set(at.x, at.y, at.z);
+          panel.group.rotation.y = at.ry;
+          panel.layout = at;
+          panels.push(panel);
+          panelGroup.add(panel.group);
+        })
+        .catch((err) => console.warn(`[halcyon] panel ${url} failed to load; skipping it.`, err)));
+    const ready = Promise.allSettled(panelLoads).then(() => undefined);
 
     return {
       scene,
       camera,
+      ready,
       update({ time, progress, pointer }) {
         uniforms.uTime.value = time;
         uniforms.uAssemble.value = Math.min(1, progress / 0.6); // scattered at 0, settled by 0.6

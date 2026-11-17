@@ -34,3 +34,17 @@ test('still mode renders the HALCYON world for its poster', async ({ page }) => 
   await page.goto('./?still=halcyon-somatics&p=0.85&tier=high');
   await expect(page.locator('html')).toHaveAttribute('data-still-ready', '1', { timeout: 60_000 });
 });
+
+test('still mode waits for slow background panels before it reports ready', async ({ page }) => {
+  test.setTimeout(150_000); // the 12 s delay plus a full still render can pass the 90 s default
+  let released = false;
+  await page.route('**/projects/halcyon-somatics/shot-terms-900.webp', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 12_000)); // a very slow panel
+    released = true;
+    await route.continue();
+  });
+  // Don't wait for `load`: a slow image that starts before it would hold `load` back, and `goto` would hide the bug.
+  await page.goto('./?still=halcyon-somatics&p=0.85&tier=high', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('html')).toHaveAttribute('data-still-ready', '1', { timeout: 80_000 });
+  expect(released).toBe(true);
+});

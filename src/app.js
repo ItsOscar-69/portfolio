@@ -28,7 +28,9 @@ async function renderStill(stage, scenes, id, params, html) {
   const index = scenes.findIndex((s) => s.id === id);
   if (!stage || index < 0) { html.dataset.stillReady = 'error'; return; }
   stage.ensure(index, scenes[index].world, scenes[index].options);
-  try { await stage.whenReady(index); } catch { html.dataset.stillReady = 'error'; return; }
+  let world;
+  try { world = await stage.whenReady(index); } catch { html.dataset.stillReady = 'error'; return; }
+  if (world && world.ready) await world.ready; // e.g. HALCYON's background panels; never rejects
   const state = { active: index, next: -1, progress: Number(params.get('p') ?? 0.8), transition: 0, display: index };
   for (let f = 0; f < 90; f++) stage.frame({ time: 6 + f / 30, delta: 1 / 30, state, pointer: { x: 0, y: 0 } });
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));

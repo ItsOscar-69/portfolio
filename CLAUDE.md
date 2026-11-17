@@ -55,12 +55,14 @@ World interface:
 export default {
   name: 'my-world',
   async create(stage, options) { // stage = { renderer, tier: 'high' | 'mid' | 'low' }
-    return { scene, camera, update({ time, delta, progress, pointer, tier }) {}, resize(width, height, dpr) {}, dispose() {} };
+    return { scene, camera, ready /* optional */, update({ time, delta, progress, pointer, tier }) {}, resize(width, height, dpr) {}, dispose() {} };
   },
 };
 ```
 
 If `create` throws, or `update` throws, that chapter falls back to its poster and the rest of the page carries on.
+
+`ready` is optional: a promise that settles (and never rejects) once background extras such as HALCYON's panels have loaded. Still mode waits for it, so posters include them.
 
 ## Status
 
