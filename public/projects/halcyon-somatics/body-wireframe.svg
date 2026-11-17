@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 600" width="300" height="600" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <!-- calibration frame and height ruler -->
+  <g stroke="#2c4a53" stroke-width="1">
+    <path d="M8 8h18M8 8v18M292 8h-18M292 8v18M8 592h18M8 592v-18M292 592h-18M292 592v-18"/>
+    <path d="M22 40v520"/>
+    <path d="M22 40h6M22 80h4M22 120h6M22 160h4M22 200h6M22 240h4M22 280h6M22 320h4M22 360h6M22 400h4M22 440h6M22 480h4M22 520h6M22 560h4"/>
+  </g>
+  <!-- cross-section contours -->
+  <g stroke="#1f3a42" stroke-width="1">
+    <ellipse cx="150" cy="146" rx="62" ry="5"/>
+    <ellipse cx="150" cy="250" rx="54" ry="5"/>
+    <ellipse cx="150" cy="336" rx="46" ry="5"/>
+    <ellipse cx="150" cy="470" rx="46" ry="4"/>
+  </g>
+  <!-- chassis outline -->
+  <g stroke="#4d7480" stroke-width="1.3">
+    <ellipse cx="150" cy="62" rx="30" ry="38"/>
+    <path d="M140 98 L138 122 M160 98 L162 122"/>
+    <path d="M138 122 C118 126 98 130 90 146 L94 210 L100 260 L96 300 L108 340 L192 340 L204 300 L200 260 L206 210 L210 146 C202 130 182 126 162 122"/>
+    <path d="M90 146 C76 152 70 166 68 186 L60 262 L52 330 M94 210 L86 266 L76 332 M52 330 C46 346 50 362 58 366 C68 368 76 352 76 332"/>
+    <path d="M210 146 C224 152 230 166 232 186 M206 210 L214 266 M248 330 C254 346 250 362 242 366 C232 368 224 352 224 332"/>
+    <path d="M108 340 C104 400 104 440 108 470 L112 560 L96 584 L128 584 L130 560 L136 470 C142 420 146 380 148 352 L150 346 L152 352 C154 380 158 420 164 470 L170 560 L172 584 L204 584 L188 560 L192 470 C196 440 196 400 192 340"/>
+    <path d="M118 170 Q150 184 182 170 M116 190 Q150 206 184 190 M118 210 Q150 226 182 210"/>
+  </g>
+  <!-- installed hardware -->
+  <g stroke="#7fe9ff" stroke-width="1.4">
+    <path d="M150 112 V332" stroke-dasharray="3 5"/>
+    <path d="M144 150h12M144 190h12M144 230h12M144 270h12M144 310h12"/>
+    <circle cx="150" cy="46" r="7"/>
+    <path d="M150 39 V30 M143 46 H134 V38 M157 46 H166 V38"/>
+    <circle cx="161" cy="66" r="6"/>
+    <circle cx="165" cy="200" r="9"/>
+    <path d="M232 186 L240 262 L248 330 M214 266 L224 332 M218 290 H242 M221 310 H245"/>
+  </g>
+  <g fill="#7fe9ff">
+    <circle cx="150" cy="46" r="2"/>
+    <circle cx="161" cy="66" r="2.2"/>
+    <circle cx="165" cy="200" r="3"/>
+  </g>
+  <circle cx="139" cy="66" r="2.2" fill="#4d7480"/>
+  <text x="40" y="596" fill="#4d7480" font-family="monospace" font-size="9" letter-spacing="2">SUBJ. PT-7734-A // STD-M</text>
+</svg>

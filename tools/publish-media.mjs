@@ -16,7 +16,10 @@ const JOBS = [
   { from: 'raw/tee/alt-stump.jpg', to: `${P}/dead-tired/alt-stump.webp` },
   { from: 'raw/tee/print.png', to: `${P}/dead-tired/cover.webp`, width: 1200, single: true, flatten: '#000000' },
 ];
-const COPIES = [{ from: 'raw/pico/boot.py', to: `${P}/pico-light-show/boot.py` }];
+const COPIES = [
+  { from: 'raw/pico/boot.py', to: `${P}/pico-light-show/boot.py` },
+  { from: 'public/halcyon/assets/body-wireframe.svg', to: `${P}/halcyon-somatics/body-wireframe.svg` },
+];
 
 async function toWebp(from, to, width, flatten) {
   let image = sharp(from).rotate().resize({ width, withoutEnlargement: true });
