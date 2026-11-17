@@ -10,9 +10,10 @@ const SCALE = 0.3; // published pixels per canvas pixel
 const slug = (file) => file.replace(/\.png$/i, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const hex = (values) => `#${values.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
 
+const files = (await fs.readdir(SRC).catch(() => [])).filter((f) => f.toLowerCase().endsWith('.png')).sort();
+if (files.length === 0) throw new Error(`no layer PNGs in ${SRC} (it is gitignored; npm run media copies them there), so nothing was changed`);
 await fs.rm(OUT, { recursive: true, force: true });
 await fs.mkdir(OUT, { recursive: true });
-const files = (await fs.readdir(SRC)).filter((f) => f.toLowerCase().endsWith('.png')).sort();
 let width;
 let height;
 const layers = [];

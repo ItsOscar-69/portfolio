@@ -25,4 +25,5 @@ test('a missing layer makes the chapter fall back to its poster, not a stack wit
 test('still mode renders the exploded-print world for its poster', async ({ page }) => {
   await page.goto('./?still=dead-tired&p=0.85&tier=high');
   await expect(page.locator('html')).toHaveAttribute('data-still-ready', '1', { timeout: 60_000 });
+  await expect(page.locator('#dead-tired')).toHaveAttribute('data-world', 'layers');
 });
