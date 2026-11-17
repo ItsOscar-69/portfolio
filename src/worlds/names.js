@@ -1,5 +1,5 @@
 // Every world a project (or the hero / next slot) may use. Each name has a file in src/worlds/<name>.js.
-export const WORLD_NAMES = ['index', 'picture', 'dormant', 'halcyon', 'layers'];
+export const WORLD_NAMES = ['index', 'picture', 'dormant', 'halcyon', 'layers', 'pico'];
 
 // Files each world needs in worldOptions, relative to public/projects/<id>/.
 // 'one' = a single file name, 'list' = a non-empty list of file names.

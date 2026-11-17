@@ -77,8 +77,7 @@ export const projects = [
     date: '2026-09',
     status: 'done',
     tags: ['MicroPython', 'Raspberry Pi Pico', 'WS2812 LEDs'],
-    world: 'picture',
-    worldOptions: { cover: 'cover.webp', palette: ['#ff3b6b', '#ffb020', '#39d0ff', '#a46bff'] },
+    world: 'pico',
     headline: 'Twenty pixels, seven moods.',
     summary: "It started with one request to Claude Code: make the light flow down my NeoPixel strip and bounce back. Claude wrote a rainbow comet, and I kept going until it became a whole light show.\n\nA power-up intro sends two sparks racing in from the ends, colliding in a flash and blooming into a rainbow. Then come rainbow glitter, twin comets that throw sparks every time they cross, fire, a starfield, plasma and a heartbeat, each one crossfading into the next every 15 seconds.",
     cards: {
