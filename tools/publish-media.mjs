@@ -13,7 +13,6 @@ const JOBS = [
   { from: 'raw/tee/on-black.jpg', to: `${P}/dead-tired/on-black.webp` },
   { from: 'raw/tee/mockup.jpg', to: `${P}/dead-tired/mockup.webp` },
   { from: 'raw/tee/alt-stump.jpg', to: `${P}/dead-tired/alt-stump.webp` },
-  { from: 'raw/tee/print.png', to: `${P}/dead-tired/cover.webp`, width: 1200, single: true, flatten: '#000000' },
 ];
 const COPIES = [
   { from: 'raw/pico/boot.py', to: `${P}/pico-light-show/boot.py` },

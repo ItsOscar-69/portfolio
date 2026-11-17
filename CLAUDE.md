@@ -20,6 +20,7 @@ Oscar's public portfolio of projects built with Claude Code. It goes live at htt
 | `npm run test:e2e` | Browser tests (Playwright with Microsoft Edge; use `PW_CHANNEL=chromium` after `npx playwright install chromium` for Playwright's own browser) |
 | `npm run media` | Rebuilds the HALCYON live copy, covers, screenshots and WebP images from the raw sources (needs `sources.local.json`) |
 | `npm run video:halcyon` | Re-records the HALCYON screen video (H.264 MP4 + WebP poster) from the live copy in `public/halcyon/`. The first time on a machine, run `npx playwright install ffmpeg` (Playwright's recorder needs its own ffmpeg build). |
+| `npm run layers:dead-tired` | Re-crops the DEAD TIRED layer PNGs from `raw/tee/layers/` into `public/projects/dead-tired/layers/` plus its `layers.json` manifest |
 | `npm run to-webp -- <input> <output.webp>` | Converts one image to a 1800 px WebP plus a `-900.webp` copy, with metadata stripped |
 | `npm run posters` | Builds the site and re-renders the still poster for every scene into `public/posters/` |
 | `npm run build` | Production build into `dist/` |
@@ -66,4 +67,4 @@ If `create` throws, or `update` throws, that chapter falls back to its poster an
 
 ## Status
 
-Milestones 1 (shell) and 2 (HALCYON world) are in place. HALCYON uses its own "halcyon" world (particles traced from its body-wireframe.svg, with drifting glass panels); the other project chapters still use the "picture" world; the hero uses "index" and the next slot uses "dormant". Custom worlds come in later milestones: DEAD TIRED (3), Pico Light Show (4) and ASCII Mirror (5). Launch is milestone 6. Plans live in `docs/superpowers/plans/`.
+Milestones 1 (shell), 2 (HALCYON world) and 3 (DEAD TIRED world) are in place. HALCYON uses its own "halcyon" world; DEAD TIRED uses the reusable "layers" world (a design's layers, from a layers.json manifest, float apart and slide together); Pico Light Show and ASCII Mirror still use the "picture" world; the hero uses "index" and the next slot uses "dormant". Custom worlds come in later milestones: Pico Light Show (4) and ASCII Mirror (5). Launch is milestone 6. Plans live in `docs/superpowers/plans/`.
