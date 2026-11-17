@@ -30,36 +30,58 @@ void main() {
   gl_FragColor = vec4(col, 1.0);
 }`;
 
-// Renders two worlds to textures and blends them with a radial zoom-blur that peaks halfway.
+const copyShader = /* glsl */ `
+uniform sampler2D tFrom;
+varying vec2 vUv;
+void main() {
+  gl_FragColor = vec4(texture2D(tFrom, vUv).rgb, 1.0);
+}`;
+
+// Renders worlds to textures and puts them on screen. render() blends two with a radial zoom-blur that peaks
+// halfway. single() draws one world through a texture. Both run post(world, target) on each world's texture first;
+// the stage uses it for bloom.
 export function createCompositor(renderer) {
   const rtA = new THREE.WebGLRenderTarget(1, 1);
   const rtB = new THREE.WebGLRenderTarget(1, 1);
-  const material = new THREE.ShaderMaterial({
+  const blend = new THREE.ShaderMaterial({
     vertexShader,
     fragmentShader,
     uniforms: { tFrom: { value: rtA.texture }, tTo: { value: rtB.texture }, uT: { value: 0 } },
     depthTest: false,
     depthWrite: false,
   });
+  const copy = new THREE.ShaderMaterial({ vertexShader, fragmentShader: copyShader, uniforms: { tFrom: { value: rtA.texture } }, depthTest: false, depthWrite: false });
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
-  const quad = new THREE.Mesh(geometry, material);
+  const quad = new THREE.Mesh(geometry, blend);
   quad.frustumCulled = false;
   const scene = new THREE.Scene();
   scene.add(quad);
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
+  const toTexture = (world, target, post) => {
+    renderer.setRenderTarget(target);
+    renderer.render(world.scene, world.camera);
+    post(world, target);
+  };
+  const toScreen = (material) => {
+    quad.material = material;
+    renderer.setRenderTarget(null);
+    renderer.render(scene, camera);
+  };
+
   return {
     resize(width, height) { rtA.setSize(width, height); rtB.setSize(width, height); },
-    render(from, to, t) {
-      renderer.setRenderTarget(rtA);
-      renderer.render(from.scene, from.camera);
-      renderer.setRenderTarget(rtB);
-      renderer.render(to.scene, to.camera);
-      renderer.setRenderTarget(null);
-      material.uniforms.uT.value = t;
-      renderer.render(scene, camera);
+    render(from, to, t, post = () => {}) {
+      toTexture(from, rtA, post);
+      toTexture(to, rtB, post);
+      blend.uniforms.uT.value = t;
+      toScreen(blend);
     },
-    dispose() { rtA.dispose(); rtB.dispose(); material.dispose(); geometry.dispose(); },
+    single(world, post = () => {}) {
+      toTexture(world, rtA, post);
+      toScreen(copy);
+    },
+    dispose() { rtA.dispose(); rtB.dispose(); blend.dispose(); copy.dispose(); geometry.dispose(); },
   };
 }

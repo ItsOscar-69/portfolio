@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { worldLoaders } from '../worlds/registry.js';
-import { pickTier, TIER_SETTINGS } from '../lib/tier.js';
+import { pickTier, TIER_SETTINGS, bloomFor } from '../lib/tier.js';
+import { createBloom } from './bloom.js';
 import { createCompositor } from './transition.js';
 
 // Colours pass through untouched everywhere (screen and render targets), so transitions never shift colour.
@@ -25,6 +26,8 @@ export function createStage(canvas, { tierOverride = null, onReady = () => {}, o
   const tier = Object.hasOwn(TIER_SETTINGS, tierOverride) ? tierOverride : pickTier({ gpu: gpuName(gl), cores: navigator.hardwareConcurrency || 4, width: window.innerWidth });
   const { dprCap } = TIER_SETTINGS[tier];
   const compositor = createCompositor(renderer);
+  const bloom = createBloom();
+  let bloomBroken = false;
   const entries = new Map(); // scene index -> { status, world, ready }
   const ctx = { renderer, tier };
   let width = 1;
@@ -39,6 +42,7 @@ export function createStage(canvas, { tierOverride = null, onReady = () => {}, o
     renderer.setPixelRatio(dpr);
     renderer.setSize(width, height, false);
     compositor.resize(Math.round(width * dpr), Math.round(height * dpr));
+    bloom.resize(Math.round(width * dpr), Math.round(height * dpr));
     entries.forEach((e) => e.world && e.world.resize(width, height, dpr));
   }
   resize();
@@ -88,6 +92,22 @@ export function createStage(canvas, { tierOverride = null, onReady = () => {}, o
     try { fn(); return true; } catch (err) { release(index); onFail(index, err); return false; }
   }
 
+  // Bloom for worlds that ask for it (world.bloom = { strength, radius, threshold }) on tiers that allow it.
+  // If bloom ever fails, the page carries on without it.
+  const wantsBloom = (world) => !bloomBroken && bloomFor(tier, world.bloom) !== null;
+  function glow(world, target) {
+    if (!wantsBloom(world)) return;
+    try {
+      bloom.apply(renderer, target, bloomFor(tier, world.bloom));
+    } catch (err) {
+      bloomBroken = true;
+      console.warn('[stage] bloom failed; carrying on without it.', err);
+    }
+  }
+  function present(world) {
+    if (wantsBloom(world)) compositor.single(world, glow);
+    else { renderer.setRenderTarget(null); renderer.render(world.scene, world.camera); }
+  }
   function frame({ time, delta, state, pointer }) {
     if (lost) return;
     const a = entries.get(state.active);
@@ -96,9 +116,8 @@ export function createStage(canvas, { tierOverride = null, onReady = () => {}, o
     let B = b && b.status === 'ready' ? b.world : null;
     if (A && !guard(state.active, () => A.update({ time, delta, progress: state.progress, pointer, tier }))) A = null;
     if (B && !guard(state.next, () => B.update({ time, delta, progress: 0, pointer, tier }))) B = null;
-    if (A && B) compositor.render(A, B, state.transition);
-    else if (A) { renderer.setRenderTarget(null); renderer.render(A.scene, A.camera); }
-    else if (B) { renderer.setRenderTarget(null); renderer.render(B.scene, B.camera); }
+    if (A && B) compositor.render(A, B, state.transition, glow);
+    else if (A || B) present(A || B);
     else { renderer.setRenderTarget(null); renderer.clear(); }
   }
 

@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { pickTier, particleCount, TIER_SETTINGS } from '../../src/lib/tier.js';
+import { pickTier, particleCount, TIER_SETTINGS, bloomFor } from '../../src/lib/tier.js';
 
 it('treats software renderers as low', () => {
   expect(pickTier({ gpu: 'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)', cores: 16, width: 1920 })).toBe('low');
@@ -26,4 +26,13 @@ it('caps pixel ratio per tier', () => {
   expect(TIER_SETTINGS.high.dprCap).toBe(2);
   expect(TIER_SETTINGS.mid.dprCap).toBe(1.5);
   expect(TIER_SETTINGS.low.dprCap).toBe(1);
+});
+
+it('blooms on the high and mid tiers, never on low (spec §8.1)', () => {
+  const ask = { strength: 1, radius: 0.5, threshold: 0.1 };
+  expect(bloomFor('high', ask)).toBe(ask);
+  expect(bloomFor('mid', ask)).toBe(ask);
+  expect(bloomFor('low', ask)).toBeNull();
+  expect(bloomFor('high', undefined)).toBeNull();
+  expect([TIER_SETTINGS.high.bloom, TIER_SETTINGS.mid.bloom, TIER_SETTINGS.low.bloom]).toEqual([true, true, false]);
 });
