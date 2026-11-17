@@ -8,7 +8,6 @@ const JOBS = [
   { from: 'raw/shots/halcyon-hero.png', to: `${P}/halcyon-somatics/shot-hero.webp` },
   { from: 'raw/shots/halcyon-seraph.png', to: `${P}/halcyon-somatics/shot-seraph.webp` },
   { from: 'raw/shots/halcyon-terms.png', to: `${P}/halcyon-somatics/shot-terms.webp` },
-  { from: 'raw/shots/halcyon-hero.png', to: `${P}/halcyon-somatics/cover.webp`, width: 1200, single: true },
   { from: 'raw/covers/ascii.png', to: `${P}/ascii-mirror/cover.webp` },
   { from: 'raw/covers/pico.png', to: `${P}/pico-light-show/cover.webp` },
   { from: 'raw/tee/on-black.jpg', to: `${P}/dead-tired/on-black.webp` },
