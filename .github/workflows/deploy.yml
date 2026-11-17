@@ -20,6 +20,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+        env:
+          FFMPEG_BIN: /bin/true
       - run: npm test
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
