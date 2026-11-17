@@ -11,7 +11,7 @@ export function autoplayVideos(doc, { reduced = false, threshold = 0.35 } = {}) 
   for (const video of videos) {
     video.addEventListener('pause', () => {
       if (pausedByUs.has(video)) pausedByUs.delete(video);
-      else pausedByVisitor.add(video);
+      else if (!doc.hidden) pausedByVisitor.add(video); // the browser pausing a hidden tab isn't the visitor
     });
     video.addEventListener('play', () => pausedByVisitor.delete(video));
   }
