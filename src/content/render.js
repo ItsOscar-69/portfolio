@@ -42,8 +42,12 @@ export function renderMedia(m, project, base) {
     }
     case 'model':
       return `<figure class="media media--model" data-model="${url(m.src)}"><img src="${url(m.poster)}" alt="${escapeHtml(m.alt)}" loading="lazy" decoding="async">${figcaption(m)}</figure>`;
-    case 'code':
-      return `<figure class="media media--code"><pre tabindex="0" data-lenis-prevent><code>${escapeHtml(m.code ?? '')}</code></pre>${figcaption(m)}</figure>`;
+    case 'code': {
+      // One span per line, numbered as in the source file, so the light show can highlight the line it's running.
+      const first = m.lines ? m.lines[0] : 1;
+      const lines = (m.code ?? '').split(/\r?\n/).map((text, i) => `<span class="code-line" data-line="${first + i}">${escapeHtml(text)}</span>`).join('\n');
+      return `<figure class="media media--code"${m.live ? ' data-live' : ''}><pre tabindex="0" data-lenis-prevent><code>${lines}</code></pre>${figcaption(m)}</figure>`;
+    }
     case 'link':
       return `<a class="media media--link" href="${escapeHtml(withBase(base, m.src))}"><span>${escapeHtml(m.caption)}</span><span aria-hidden="true">↗</span></a>`;
     default:

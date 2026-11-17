@@ -4,6 +4,7 @@ import { lifecyclePlan } from './lib/lifecycle.js';
 import { createMenu } from './ui/menu.js';
 import { createPill } from './ui/pill.js';
 import { autoplayVideos } from './ui/media.js';
+import { createLightShow } from './ui/light-show.js';
 
 export function readScenes(doc) {
   return Array.from(doc.querySelectorAll('.scene')).map((el) => ({
@@ -114,6 +115,7 @@ export async function startApp({ win = window, doc = document } = {}) {
     onSelect: goTo,
   });
   autoplayVideos(doc, { reduced });
+  createLightShow({ doc, reduced });
 
   let layout = measure(scenes, win);
   let state = sceneState(win.scrollY, win.innerHeight, layout);

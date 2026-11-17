@@ -26,3 +26,15 @@
 .card { border-top: 1px solid var(--faint); padding-top: 18px; }
 .card h4 { margin: 0 0 8px; font-weight: 500; font-size: 17px; }
 .card p { margin: 0; color: var(--muted); font-size: 16px; }
+
+.lightshow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; max-width: 640px; }
+.lightshow button { padding: 9px 14px; border: 1px solid var(--faint); border-radius: 999px; background: rgba(9, 9, 9, 0.6); color: var(--paper); font: 500 12px/1 var(--font-mono); letter-spacing: 0.04em; cursor: pointer; }
+.lightshow button:hover { border-color: var(--paper); }
+.lightshow .chip[aria-pressed="true"] { background: var(--paper); border-color: var(--paper); color: var(--ink); }
+.lightshow__play { min-width: 74px; }
+.lightshow__now { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-bottom: 12px; color: var(--muted); font-size: 13px; }
+.lightshow__strip { display: inline-flex; gap: 4px; padding: 7px 9px; border-radius: 999px; background: #141414; }
+.lightshow__strip i { width: 9px; height: 9px; border-radius: 50%; background: #000; }
+.media--code pre { position: relative; }
+.code-line { display: inline-block; min-width: 100%; min-height: 1.6em; vertical-align: top; }
+.code-line.is-running { background: rgba(57, 208, 255, 0.16); box-shadow: inset 3px 0 0 #39d0ff; }

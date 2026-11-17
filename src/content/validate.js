@@ -67,6 +67,7 @@ export function validateProjects(projects, { worldNames, fileExists, worldAssets
         const ok = Array.isArray(m.lines) && m.lines.length === 2 && m.lines.every(Number.isInteger) && m.lines[0] >= 1 && m.lines[0] <= m.lines[1];
         if (!ok) fail(`${at}: "lines" must be [first, last] line numbers`);
       }
+      if (m.live !== undefined && (m.type !== 'code' || typeof m.live !== 'boolean')) fail(`${at}: "live" is true or false, and only for code media`);
     });
 
     if (p.links !== undefined && (!Array.isArray(p.links) || !p.links.every((l) => l && isText(l.label) && isText(l.href)))) {

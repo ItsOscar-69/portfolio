@@ -80,6 +80,11 @@ describe('validateProjects', () => {
   it('checks links', () => {
     expect(errorsFor({ links: [{ label: 'x' }] })[0]).toMatch(/"links" must be a list/);
   });
+  it('only lets code media be live, and live is true or false', () => {
+    expect(errorsFor({ media: [{ type: 'code', src: 'a.py', live: 'yes' }] })[0]).toMatch(/"live" is true or false, and only for code media/);
+    expect(errorsFor({ media: [{ type: 'image', src: 'shot.webp', alt: 'A shot', live: true }] })[0]).toMatch(/only for code media/);
+    expect(errorsFor({ media: [{ type: 'code', src: 'a.py', live: true }] })).toEqual([]);
+  });
   it('says which project each error belongs to', () => {
     expect(errorsFor({ title: '' })[0]).toMatch(/^project 1 \(demo\): /);
   });

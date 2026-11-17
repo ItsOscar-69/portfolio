@@ -86,7 +86,7 @@ export const projects = [
       inside: "MicroPython driving WS2812 LEDs through the Pico's PIO, a gamma table so fades look smooth to the eye, anti-aliased dots and a steady 50 fps frame timer.",
     },
     media: [
-      { type: 'code', src: 'boot.py', lines: [153, 192], caption: 'twin_comets: two comets bounce along the strip and throw off sparks whenever they cross.' },
+      { type: 'code', src: 'boot.py', lines: [106, 283], live: true, caption: 'The seven effects in boot.py. While the show plays, the line it’s running lights up.' },
       { type: 'image', src: 'cover.webp', alt: 'An illustration of twenty LEDs in a row with a rainbow comet trail', caption: 'An illustration of the strip mid-comet.' },
     ],
   },

@@ -91,6 +91,12 @@ describe('renderMedia', () => {
     expect(renderMedia({ type: 'code', src: 'a.py', code: 'if a < b:\n  print("x")' }, p, '/')).toContain('if a &lt; b:');
     expect(renderMedia({ type: 'code', src: 'a.py', code: 'x' }, p, '/')).toContain('<pre tabindex="0" data-lenis-prevent>');
   });
+  it('numbers code lines from the first line shown, and marks live panels', () => {
+    const html = renderMedia({ type: 'code', src: 'a.py', lines: [10, 11], code: 'a = 1\nb < 2', live: true }, p, '/');
+    expect(html).toContain('<figure class="media media--code" data-live>');
+    expect(html).toContain('<span class="code-line" data-line="10">a = 1</span>\n<span class="code-line" data-line="11">b &lt; 2</span>');
+    expect(renderMedia({ type: 'code', src: 'a.py', code: 'x\r\ny' }, p, '/')).toContain('<span class="code-line" data-line="1">x</span>\n<span class="code-line" data-line="2">y</span>');
+  });
   it('renders links through the base', () => {
     expect(renderMedia({ type: 'link', src: '/halcyon/', caption: 'Open' }, p, '/sub/')).toContain('href="/sub/halcyon/"');
   });
