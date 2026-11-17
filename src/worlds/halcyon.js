@@ -18,7 +18,7 @@ const PANEL_WIDTH = 1.15;
 const PANEL_LAYOUT = [
   { x: -1.75, y: 0.55, z: -0.9, ry: 0.32, speed: 0.9 },
   { x: 1.7, y: -0.15, z: -1.3, ry: -0.36, speed: 0.6 },
-  { x: -1.3, y: -0.95, z: -0.4, ry: 0.22, speed: 1.2 },
+  { x: 1.9, y: 0.95, z: -1.6, ry: -0.28, speed: 0.8 },
 ];
 
 const vertexShader = /* glsl */ `
@@ -172,6 +172,7 @@ export default {
         const halfH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.position.z;
         const halfW = halfH * camera.aspect;
         body.scale.setScalar(Math.min(1, (halfW * 0.9) / (bodyHalfWidth + 0.05), (halfH * 0.92) / (BODY_HEIGHT / 2)));
+        body.position.y = camera.aspect < 0.8 ? 0.22 : 0;
         body.position.x = camera.aspect > 1.2 ? halfW * 0.3 : 0; // keep the bottom-left title clear on wide screens
         panelGroup.visible = camera.aspect > 0.8; // phones: just the body
         panelGroup.scale.setScalar(Math.min(1, camera.aspect / 1.6));

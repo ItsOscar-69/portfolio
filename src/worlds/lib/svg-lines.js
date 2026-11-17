@@ -32,13 +32,19 @@ export function svgToPolylines(svgText, { step = 1.5 } = {}) {
       const length = el.getTotalLength();
       if (!(length > 0)) continue;
       const n = Math.max(2, Math.ceil(length / step));
-      const points = new Float32Array(n * 2);
+      // A moveto inside a path makes consecutive samples jump; split there so no particles fill the gap.
+      let run = [];
+      const flush = () => {
+        if (run.length >= 4) polylines.push({ stroke, points: Float32Array.from(run) });
+        run = [];
+      };
       for (let i = 0; i < n; i++) {
         const p = el.getPointAtLength((i / (n - 1)) * length);
-        points[i * 2] = p.x;
-        points[i * 2 + 1] = p.y;
+        const last = run.length;
+        if (last && Math.hypot(p.x - run[last - 2], p.y - run[last - 1]) > step * 4) flush();
+        run.push(p.x, p.y);
       }
-      polylines.push({ stroke, points });
+      flush();
     }
     return { width, height, polylines };
   } finally {
