@@ -1,0 +1,78 @@
+{
+  "width": 4193,
+  "height": 4801,
+  "layers": [
+    {
+      "name": "SHIRT",
+      "fill": "#161616",
+      "x": 0,
+      "y": 0,
+      "w": 4193,
+      "h": 4801
+    },
+    {
+      "name": "TITLE outline - DEAD",
+      "file": "01-title-outline-dead.webp",
+      "x": 267,
+      "y": 196,
+      "w": 3671,
+      "h": 1647
+    },
+    {
+      "name": "TITLE outline - TIRED",
+      "file": "02-title-outline-tired.webp",
+      "x": 197,
+      "y": 2610,
+      "w": 3746,
+      "h": 1524
+    },
+    {
+      "name": "TITLE solid - DEAD",
+      "file": "03-title-solid-dead.webp",
+      "x": 281,
+      "y": 566,
+      "w": 3643,
+      "h": 1619
+    },
+    {
+      "name": "TITLE solid - TIRED",
+      "file": "04-title-solid-tired.webp",
+      "x": 211,
+      "y": 2295,
+      "w": 3718,
+      "h": 1496
+    },
+    {
+      "name": "GROUND",
+      "file": "05-ground.webp",
+      "x": 1736,
+      "y": 3805,
+      "w": 1343,
+      "h": 381
+    },
+    {
+      "name": "SKELETON",
+      "file": "06-skeleton.webp",
+      "x": 1421,
+      "y": 937,
+      "w": 1388,
+      "h": 3316
+    },
+    {
+      "name": "BOTTOM BAR",
+      "file": "07-bottom-bar.webp",
+      "x": 200,
+      "y": 4372,
+      "w": 3794,
+      "h": 181
+    },
+    {
+      "name": "BATTERY CELL",
+      "file": "08-battery-cell.webp",
+      "x": 1997,
+      "y": 4474,
+      "w": 37,
+      "h": 53
+    }
+  ]
+}
