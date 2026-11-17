@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+test.skip(process.env.PW_CHANNEL === 'chromium', "needs H.264 playback, which Playwright's own Chromium doesn't ship");
+
 const VIDEO = '#halcyon-somatics video';
 
 test('the HALCYON recording plays muted on a loop while on screen, and pauses when scrolled away', async ({ page }) => {

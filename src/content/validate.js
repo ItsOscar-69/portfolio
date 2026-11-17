@@ -1,6 +1,6 @@
 import { WORLD_ASSETS } from '../worlds/names.js';
 
-export const MEDIA_TYPES =['image', 'video', 'model', 'code', 'link'];
+export const MEDIA_TYPES = ['image', 'video', 'model', 'code', 'link'];
 const RESERVED_IDS = ['top', 'hero', 'next', 'main', 'chapter-menu'];
 export const FONT_KEYS = ['michroma', 'big-shoulders', 'mono'];
 const REQUIRED_TEXT = ['id', 'title', 'hook', 'date', 'status', 'world', 'headline', 'summary'];
