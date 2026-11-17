@@ -6,6 +6,9 @@ import { parseLayerManifest } from '../lib/layer-manifest.js';
 // An "exploded print": a design's layers float apart along Z and slide together into the finished piece.
 const STACK_HEIGHT = 2.0; // world units for the full canvas height
 const SPREAD = 0.24; // gap between neighbouring layers when fully exploded (larger pushes the front layers into the camera)
+const WIDE_SCALE = 0.82; // wide screens: largest print scale (1 = fills 90% of the height)
+const WIDE_SHIFT = 0.53; // wide screens: print centre, as a fraction of the half-width right of centre
+const WIDE_LIFT = 0.08; // wide screens: raise the stack so the exploded bottom bar stays above the pill
 const DEFAULT_DUST = ['#bca775', '#8c1f25'];
 const HEX = /^#[0-9a-f]{6}$/i;
 
@@ -136,10 +139,12 @@ export default {
         dustUniforms.uScale.value = dpr * (height / 900);
         const halfH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.position.z;
         const halfW = halfH * camera.aspect;
-        const lift = camera.aspect < 0.8 ? 0.25 : 0; // phones: raise the print clear of the title
-        stack.scale.setScalar(Math.min(1, (halfW * (camera.aspect < 0.8 ? 0.74 : 0.9)) / (stackHalfWidth + 0.05), (halfH * 0.9 - lift) / (STACK_HEIGHT / 2)));
+        const wide = camera.aspect > 1.2;
+        const lift = camera.aspect < 0.8 ? 0.25 : wide ? WIDE_LIFT : 0; // phones: raise the print clear of the title; wide: clear of the pill
+        const cap = wide ? WIDE_SCALE : 1; // wide screens: a smaller print, so it sits right of the big chapter title
+        stack.scale.setScalar(Math.min(cap, (halfW * (camera.aspect < 0.8 ? 0.74 : 0.9)) / (stackHalfWidth + 0.05), (halfH * 0.9 - lift) / (STACK_HEIGHT / 2)));
         stack.position.y = lift;
-        stack.position.x = camera.aspect > 1.2 ? halfW * 0.3 : 0; // keep the bottom-left title clear on wide screens
+        stack.position.x = wide ? halfW * WIDE_SHIFT : 0; // wide: push the print right, clear of the bottom-left title
       },
       dispose() {
         parts.forEach((part) => {
