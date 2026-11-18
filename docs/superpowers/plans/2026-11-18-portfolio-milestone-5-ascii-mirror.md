@@ -1077,4 +1077,655 @@ git commit -m "feat: add the opt-in webcam mirror, drawn through the ASCII pass,
 
 ---
 
-<!-- PART B: Tasks 5-8 -->
+## Part B: the viewer and the demo recording
+
+### Task 5: The model viewer
+
+**Files:**
+- Create: `src/ui/model-viewer.js`, `tools/model-poster.mjs`, `tests/e2e/model-viewer.spec.js`
+- Modify: `src/app.js`, `src/styles/chapter.css`, `src/content/projects.js` (add the model media item), `package.json` (add `poster:model`)
+- Generated and committed: `public/projects/ascii-mirror/model-poster.webp`
+
+**Interfaces:**
+- **Consumes:**
+  - `PARTS` and `partFor` (Task 1), and `pi-assembly.glb` (Task 1).
+  - The model media markup from M1's renderer: `<figure class="media media--model" data-model="URL"><img src="POSTER" alt="…" loading="lazy" decoding="async"><figcaption>…</figcaption></figure>`.
+  - `src/content/validate.js` requires a model's `poster` file to exist.
+- **Produces:**
+  - `createModelViewers({ doc, reduced })` returns one `{ figure, highlight(id | null) }` per model figure.
+  - DOM:
+    - `.model__stage` (4:3) holds the poster `<img>` and, once mounted, `canvas.model__canvas`.
+    - Next to it is `ul.model__parts` (`aria-label="Parts of the build"`), with one `<button data-part="ID">` per part.
+    - `figure.dataset.highlight` is the highlighted part's id, and is absent when none is highlighted.
+    - The figure gets `is-ready` after its first 3D frame.
+
+- [ ] **Step 1: Write the failing browser tests**
+
+`tests/e2e/model-viewer.spec.js`:
+```js
+import { test, expect } from '@playwright/test';
+
+const viewer = async (page) => {
+  const figure = page.locator('#ascii-mirror .media--model');
+  await figure.scrollIntoViewIfNeeded();
+  return figure;
+};
+const highlighted = (figure) => figure.getAttribute('data-highlight');
+
+test('the viewer loads near the screen, lists the 7 parts, and highlights the one you point at', async ({ page }) => {
+  const errors = [];
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  await page.goto('./');
+  const figure = await viewer(page);
+  await expect(figure).toHaveClass(/is-ready/, { timeout: 30_000 });
+  await expect(figure.locator('.model__canvas')).toBeVisible();
+  const parts = figure.getByRole('list', { name: 'Parts of the build' }).getByRole('button');
+  await expect(parts).toHaveCount(7);
+  await parts.filter({ hasText: 'Camera mount (printed)' }).hover();
+  await expect.poll(() => highlighted(figure)).toBe('mount');
+  await page.mouse.move(5, 5);
+  await expect.poll(() => highlighted(figure)).toBeNull();
+  expect(errors).toEqual([]);
+});
+
+test('focusing a part in the list highlights it, for keyboard visitors', async ({ page }) => {
+  await page.goto('./');
+  const figure = await viewer(page);
+  const pi = figure.getByRole('button', { name: 'Raspberry Pi 5' });
+  await pi.focus();
+  await expect.poll(() => highlighted(figure)).toBe('pi5');
+  await pi.blur();
+  await expect.poll(() => highlighted(figure)).toBeNull();
+});
+
+test('a wheel over the viewer scrolls the page instead of zooming', async ({ page }) => {
+  await page.goto('./');
+  const figure = await viewer(page);
+  await expect(figure).toHaveClass(/is-ready/, { timeout: 30_000 });
+  const box = await figure.locator('.model__canvas').boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  const before = await page.evaluate(() => scrollY);
+  await page.mouse.wheel(0, 600);
+  await expect.poll(() => page.evaluate(() => scrollY), { timeout: 5_000 }).toBeGreaterThan(before + 100);
+});
+
+test('without WebGL the poster and the part list stay', async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (type, ...rest) {
+      return /webgl/i.test(type) ? null : original.call(this, type, ...rest);
+    };
+  });
+  await page.goto('./');
+  const figure = await viewer(page);
+  await page.waitForTimeout(1_500);
+  await expect(figure).not.toHaveClass(/is-ready/);
+  await expect(figure.locator('.model__stage img')).toBeVisible();
+  await expect(figure.getByRole('list', { name: 'Parts of the build' }).getByRole('button')).toHaveCount(7);
+});
+
+test('if the model fails to load, the poster and the part list stay', async ({ page }) => {
+  await page.route('**/projects/ascii-mirror/pi-assembly.glb', (route) => route.abort());
+  await page.goto('./');
+  const figure = await viewer(page);
+  await page.waitForTimeout(1_500);
+  await expect(figure).not.toHaveClass(/is-ready/);
+  await expect(figure.locator('.model__stage img')).toBeVisible();
+  await expect(figure.getByRole('list', { name: 'Parts of the build' }).getByRole('button')).toHaveCount(7);
+});
+```
+
+Run: `npx playwright test tests/e2e/model-viewer.spec.js`
+Expected: FAIL, because the chapter has no model media yet.
+
+- [ ] **Step 2: Implement `src/ui/model-viewer.js`**
+
+```js
+import { PARTS, partFor } from '../lib/pi-parts.js';
+
+// Tints for the normal-shaded view, near the real parts' colours so the list is easy to match up.
+const TINTS = { case: '#d8d3ca', pi5: '#2f6a3c', 'hat-hardware': '#c8b16a', 'ai-hat': '#30343b', mount: '#8fd8b0', camera: '#3f6b4c', ribbon: '#d2b47c' };
+const HIGHLIGHT = '#39ff88';
+
+// The content panel's 3D viewer (spec §4.3): the Pi build, normally shaded, that you turn by dragging, with a list
+// of its 7 parts. Hovering or focusing a part in the list highlights it.
+// - Each viewer has its own small renderer, made only when its figure first comes near the screen.
+// - It never zooms on the wheel, and vertical swipes scroll the page, so it can't trap scrolling.
+// - Without WebGL, or if the model fails to load, the poster and the list stay.
+export function createModelViewers({ doc, reduced = false }) {
+  const win = doc.defaultView;
+  return Array.from(doc.querySelectorAll('.media--model[data-model]')).map((figure) => {
+    const poster = figure.querySelector('img');
+    const stage = doc.createElement('div');
+    stage.className = 'model__stage';
+    figure.insertBefore(stage, poster);
+    if (poster) stage.append(poster);
+
+    const list = doc.createElement('ul');
+    list.className = 'model__parts';
+    list.setAttribute('aria-label', 'Parts of the build');
+    const buttons = new Map();
+    let apply = () => {};
+    const highlight = (id) => {
+      if (id) figure.dataset.highlight = id;
+      else delete figure.dataset.highlight;
+      buttons.forEach((b, key) => b.classList.toggle('is-hot', key === id));
+      apply(id);
+    };
+    for (const part of PARTS) {
+      const item = doc.createElement('li');
+      const b = doc.createElement('button');
+      b.type = 'button';
+      b.textContent = part.label;
+      b.dataset.part = part.id;
+      b.addEventListener('pointerenter', () => highlight(part.id));
+      b.addEventListener('pointerleave', () => highlight(null));
+      b.addEventListener('focus', () => highlight(part.id));
+      b.addEventListener('blur', () => highlight(null));
+      item.append(b);
+      list.append(item);
+      buttons.set(part.id, b);
+    }
+    stage.after(list);
+
+    const begin = () => mount({ figure, stage, doc, win, reduced }).then((fn) => {
+      if (!fn) return;
+      apply = fn;
+      apply(figure.dataset.highlight || null);
+    });
+    if ('IntersectionObserver' in win) {
+      const near = new win.IntersectionObserver((entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          near.disconnect();
+          begin();
+        }
+      }, { rootMargin: '300px 0px' });
+      near.observe(figure);
+    } else begin();
+    return { figure, highlight };
+  });
+}
+
+// Loads three.js and the model, adds the canvas and returns the function that applies a highlight (or null).
+async function mount({ figure, stage, doc, win, reduced }) {
+  let THREE;
+  let GLTFLoader;
+  let MeshoptDecoder;
+  let OrbitControls;
+  try {
+    [THREE, { GLTFLoader }, { MeshoptDecoder }, { OrbitControls }] = await Promise.all([
+      import('three'),
+      import('three/addons/loaders/GLTFLoader.js'),
+      import('three/addons/libs/meshopt_decoder.module.js'),
+      import('three/addons/controls/OrbitControls.js'),
+    ]);
+  } catch (err) {
+    console.warn('[model viewer] three.js failed to load; keeping the poster.', err);
+    return null;
+  }
+  const canvas = doc.createElement('canvas');
+  canvas.className = 'model__canvas';
+  canvas.setAttribute('role', 'img');
+  canvas.setAttribute('aria-label', '3D view of the Pi 5 build. Drag sideways to turn it.');
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  } catch (err) {
+    console.warn('[model viewer] WebGL is unavailable; keeping the poster.', err);
+    return null;
+  }
+  THREE.ColorManagement.enabled = false; // colours pass through raw, as on the stage
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+  renderer.setPixelRatio(Math.min(win.devicePixelRatio || 1, 2));
+  let gltf;
+  try {
+    gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(figure.dataset.model);
+  } catch (err) {
+    renderer.dispose();
+    console.warn('[model viewer] the model failed to load; keeping the poster.', err);
+    return null;
+  }
+
+  const materials = new Map();
+  gltf.scene.traverse((o) => {
+    if (!o.isMesh) return;
+    const part = partFor(o.name);
+    if (!part) return;
+    const material = new THREE.MeshStandardMaterial({ color: TINTS[part.id], flatShading: true, roughness: 0.7, metalness: 0.05, transparent: true });
+    o.material = material;
+    materials.set(part.id, material);
+  });
+  const box = new THREE.Box3().setFromObject(gltf.scene);
+  gltf.scene.position.sub(box.getCenter(new THREE.Vector3()));
+  const radius = box.getSize(new THREE.Vector3()).length() / 2;
+  const model = new THREE.Group();
+  model.rotation.x = -Math.PI / 2; // the CAD model is Z-up; three.js is Y-up
+  model.add(gltf.scene);
+  const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+  sun.position.set(radius * 2, radius * 3, radius * 2.5);
+  const scene = new THREE.Scene();
+  scene.add(model, new THREE.HemisphereLight(0xffffff, 0x303030, 1.3), sun);
+  const camera = new THREE.PerspectiveCamera(35, 4 / 3, radius / 50, radius * 20);
+  camera.position.set(radius * 1.5, radius * 1.0, radius * 2.1);
+  const controls = new OrbitControls(camera, canvas);
+  controls.enableZoom = false; // the wheel scrolls the page
+  controls.enablePan = false;
+  controls.enableDamping = !reduced;
+  controls.dampingFactor = 0.08;
+  controls.update();
+  canvas.style.touchAction = 'pan-y'; // vertical swipes scroll the page; sideways drags turn the model
+  stage.append(canvas);
+
+  let dirty = true;
+  const resize = () => {
+    const w = stage.clientWidth;
+    const h = stage.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    dirty = true;
+  };
+  if ('ResizeObserver' in win) new win.ResizeObserver(resize).observe(stage);
+  resize();
+  controls.addEventListener('change', () => { dirty = true; });
+
+  // Draws only when something changed, and only while the figure is on screen.
+  let raf = 0;
+  const loop = () => {
+    raf = win.requestAnimationFrame(loop);
+    const moved = controls.update();
+    if (!moved && !dirty) return;
+    renderer.render(scene, camera);
+    dirty = false;
+    figure.classList.add('is-ready');
+  };
+  const run = () => { if (!raf) raf = win.requestAnimationFrame(loop); };
+  const pause = () => {
+    if (raf) win.cancelAnimationFrame(raf);
+    raf = 0;
+  };
+  if ('IntersectionObserver' in win) new win.IntersectionObserver(([entry]) => (entry.isIntersecting ? run() : pause())).observe(figure);
+  else run();
+
+  return (id) => {
+    materials.forEach((material, key) => {
+      const on = key === id;
+      material.emissive.set(on ? HIGHLIGHT : '#000000');
+      material.emissiveIntensity = on ? 0.5 : 0;
+      material.opacity = id && !on ? 0.28 : 1;
+      material.depthWrite = !id || on;
+    });
+    dirty = true;
+  };
+}
+```
+
+In `src/app.js`:
+- after `import { createMirror } from './ui/mirror.js';`, add `import { createModelViewers } from './ui/model-viewer.js';`;
+- directly after the guarded `createMirror` line, add:
+  ```js
+    try { createModelViewers({ doc, reduced }); } catch (err) { console.error('[model viewer] the viewer failed to start; the rest of the page carries on.', err); }
+  ```
+
+Append to `src/styles/chapter.css`:
+```css
+.model__stage { position: relative; aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--radius); background: var(--ink-2); }
+.model__stage > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity 0.4s ease; }
+.media--model.is-ready .model__stage > img { opacity: 0; }
+.model__canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; cursor: grab; }
+.model__canvas:active { cursor: grabbing; }
+.model__parts { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.model__parts button { padding: 7px 12px; border: 1px solid var(--faint); border-radius: 999px; background: transparent; color: var(--paper); font: 500 12px/1 var(--font-mono); cursor: pointer; }
+.model__parts button:hover, .model__parts button.is-hot { border-color: #39ff88; color: #39ff88; }
+```
+
+- [ ] **Step 3: Add the model to the chapter, using a placeholder poster first**
+
+`src/content/validate.js` needs the poster file to exist before the site builds. Start with a copy of the chapter's cover, which Step 5 replaces with a real screenshot of the viewer:
+```bash
+cp public/projects/ascii-mirror/cover.webp public/projects/ascii-mirror/model-poster.webp
+```
+
+In `src/content/projects.js`, in the `ascii-mirror` entry, make this the **first** item of `media`. The first item spans the panel's full width.
+```js
+      { type: 'model', src: 'pi-assembly.glb', poster: 'model-poster.webp', alt: 'A 3D model of the Pi 5 build: the case, the Raspberry Pi 5, the AI HAT+ on its spacers, and Camera Module 3 in its printed mount', caption: 'The whole build in 3D. Drag to turn it, and point at a part in the list to find it.' },
+```
+
+- [ ] **Step 4: Run the tests**
+
+Run: `npx playwright test tests/e2e/model-viewer.spec.js tests/e2e/site.spec.js tests/e2e/content.spec.js`
+Expected: all PASS.
+
+Run: `npm test`
+Expected: all PASS.
+
+- [ ] **Step 5: Make the real poster**
+
+`tools/model-poster.mjs`:
+```js
+// Saves the ASCII Mirror's 3D viewer, as it looks on the page, as model-poster.webp: the image shown before the
+// viewer loads, and instead of it without WebGL. ?posters keeps the 3D stage off, so only the viewer draws.
+import sharp from 'sharp';
+import { preview } from 'vite';
+import { launch } from './lib/browser.mjs';
+import { BASE } from '../site.config.js';
+
+const PORT = 4177;
+const OUT = 'public/projects/ascii-mirror/model-poster.webp';
+const server = await preview({ preview: { port: PORT, strictPort: true }, logLevel: 'warn' });
+const browser = await launch();
+try {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+  page.on('console', (m) => { if (m.type() === 'error') console.error(`[page] ${m.text()}`); });
+  await page.goto(`http://localhost:${PORT}${BASE}?posters`);
+  const figure = page.locator('#ascii-mirror .media--model');
+  await figure.scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => document.querySelector('#ascii-mirror .media--model').classList.contains('is-ready'), null, { timeout: 60_000 });
+  await page.waitForTimeout(1_200); // let the poster fade out
+  const png = await figure.locator('.model__stage').screenshot();
+  await sharp(png).resize({ width: 1200 }).webp({ quality: 82 }).toFile(OUT);
+  console.log(`wrote ${OUT}`);
+} finally {
+  await browser.close();
+  if (typeof server.close === 'function') await server.close();
+  else server.httpServer.close();
+}
+```
+
+In `package.json` `"scripts"`, add `"poster:model": "vite build && node tools/model-poster.mjs",`.
+
+Run: `npm run poster:model && npm run check:media`
+Expected: `wrote public/projects/ascii-mirror/model-poster.webp`, and the metadata check passes.
+
+Open the poster with the Read tool. It should show the normally shaded Pi build, not the ASCII cover.
+
+- [ ] **Step 6: Look at it**
+
+Adapt your scratch script. At 1440×900 and at 375×812:
+- scroll the viewer into view;
+- wait for `is-ready`;
+- take a screenshot;
+- hover "Camera mount (printed)" and take another;
+- drag across the canvas and take a third.
+
+Check that:
+- the model is framed with a margin, and turns when dragged;
+- the hovered part glows green while the others fade;
+- the list wraps neatly on the phone.
+
+If something reads badly, tune only these, and say what you changed:
+- `TINTS`;
+- the light intensities;
+- the camera position;
+- the highlight's `emissiveIntensity` and opacity;
+- the CSS.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/ui/model-viewer.js src/app.js src/styles/chapter.css src/content/projects.js tools/model-poster.mjs package.json public/projects/ascii-mirror/model-poster.webp tests/e2e/model-viewer.spec.js
+git commit -m "feat: add the Pi build's 3D viewer with its part list to the ASCII Mirror panel" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 6: The Windows demo recording
+
+**Files:**
+- Create: `tools/record-ascii-demo.py`, `tools/capture-ascii-demo.mjs`
+- Modify: `package.json` (add `video:ascii`), `src/content/projects.js` (add the video media item), `tests/e2e/video.spec.js`
+- Generated and committed: `public/projects/ascii-mirror/demo.mp4`, `public/projects/ascii-mirror/demo-poster.webp`
+
+**Interfaces:**
+- **Consumes:**
+  - `raw/ascii/ascii_cyberpunk.py`, a copy of the Windows demo Claude Code wrote for Oscar. `raw/` is gitignored. The controller tells you where the original lives on this PC.
+    - **Never write that location into any file or commit.**
+    - Copy it with `mkdir -p raw/ascii && cp "<the location you were given>" raw/ascii/ascii_cyberpunk.py`.
+  - The demo's `App` class:
+    - `App().handle(event)`, `update(dt)` and `draw(dt)`;
+    - `App().screen` (1280×720), `App().clock` and `App().show_help`;
+    - `MOUSEMOTION` sets the figure's target, and `MOUSEWHEEL` scales the figure by `1.1 ** e.y`.
+  - The demo only runs itself under `__main__`.
+  - `py` has pygame-ce 2.5.8 and numpy.
+  - `ffmpeg-static` (its default export is the ffmpeg path).
+  - The M2 video media pattern: `{ type: 'video', src, poster, alt, caption }`. The plugin adds the poster's size, and the renderer adds `data-autoplay`.
+- **Produces:**
+  - `demo.mp4`: H.264, yuv420p, faststart, no audio, metadata stripped, 10 s at 30 fps, 1280×720.
+  - `demo-poster.webp`: frame 120, 1280 px wide.
+  - The ASCII chapter's second media item.
+
+- [ ] **Step 1: Write the failing browser test**
+
+In `tests/e2e/video.spec.js`, append after the existing tests. The file's existing `test.skip` for Playwright's own Chromium then covers it.
+```js
+test('the ASCII demo recording plays muted on a loop while on screen', async ({ page }) => {
+  await page.goto('./');
+  const video = page.locator('#ascii-mirror video');
+  await expect(video).toHaveAttribute('loop', '');
+  expect(await video.evaluate((v) => v.muted)).toBe(true);
+  await video.scrollIntoViewIfNeeded();
+  await expect.poll(() => video.evaluate((v) => !v.paused && v.currentTime > 0), { timeout: 20_000 }).toBe(true);
+  expect(await video.evaluate((v) => [v.videoWidth, v.videoHeight])).toEqual([1280, 720]);
+});
+```
+
+Run: `npx playwright test tests/e2e/video.spec.js -g "ASCII demo"`
+Expected: FAIL, because the chapter has no video yet.
+
+- [ ] **Step 2: Write the recorder and the capture tool**
+
+`tools/record-ascii-demo.py`:
+```python
+"""Records the ASCII cyberpunk demo (raw/ascii/ascii_cyberpunk.py) headless for the portfolio.
+
+Usage: py tools/record-ascii-demo.py <demo.py> <out dir> <frames> <fps>
+SDL's dummy video driver means nothing is drawn on screen and the real mouse is never read: the figure follows a
+scripted path, and every frame is saved as a PNG for tools/capture-ascii-demo.mjs to encode.
+"""
+import importlib.util
+import math
+import os
+import random
+import sys
+
+os.environ["SDL_VIDEODRIVER"] = "dummy"
+os.environ["SDL_AUDIODRIVER"] = "dummy"
+
+demo_path, out_dir, frames, fps = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
+random.seed(1)
+spec = importlib.util.spec_from_file_location("ascii_demo", demo_path)
+demo = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(demo)  # defines App; the demo only runs itself under __main__
+
+import pygame  # noqa: E402  (imported after the demo set it up with the dummy driver)
+
+
+class SteadyClock:
+    """Stands in for pygame's clock, so the HUD shows the frame rate the recording plays at."""
+
+    def tick(self, *_):
+        return 1000 / fps
+
+    def get_fps(self):
+        return float(fps)
+
+
+SHRINK_STEPS = 5  # mouse-wheel notches down, so the figure fits the street with room around it
+app = demo.App()
+app.clock = SteadyClock()
+app.show_help = False
+for _ in range(SHRINK_STEPS):
+    app.handle(pygame.event.Event(pygame.MOUSEWHEEL, x=0, y=-1, flipped=False, precise_x=0.0, precise_y=-1.0))
+w, h = app.screen.get_size()
+os.makedirs(out_dir, exist_ok=True)
+dt = 1.0 / fps
+for f in range(frames):
+    t = f * dt
+    x = w * (0.5 + 0.32 * math.sin(t * 0.55))  # the figure strolls left and right across the street
+    y = h * (0.68 + 0.04 * math.sin(t * 1.3))
+    app.handle(pygame.event.Event(pygame.MOUSEMOTION, pos=(int(x), int(y)), rel=(0, 0), buttons=(0, 0, 0)))
+    app.update(dt)
+    app.draw(dt)
+    pygame.image.save(app.screen, os.path.join(out_dir, f"f{f:04d}.png"))
+pygame.quit()
+print(f"saved {frames} frames of {w}x{h}")
+```
+
+`tools/capture-ascii-demo.mjs`:
+```js
+// Records the Windows ASCII demo Claude Code wrote for Oscar (raw/ascii/ascii_cyberpunk.py, gitignored) and publishes
+// it for the ASCII Mirror chapter: demo.mp4 (H.264, no audio, metadata stripped) and demo-poster.webp.
+// Needs the `py` launcher with the demo's own requirements, pygame-ce and numpy.
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import ffmpeg from 'ffmpeg-static';
+import sharp from 'sharp';
+
+const SRC = 'raw/ascii/ascii_cyberpunk.py';
+const OUT = 'public/projects/ascii-mirror';
+const FPS = 30;
+const SECONDS = 10;
+
+if (!fs.existsSync(SRC)) throw new Error(`${SRC} is missing: copy the demo there first (raw/ is gitignored)`);
+const run = (cmd, args) => {
+  const result = spawnSync(cmd, args, { stdio: 'inherit' });
+  if (result.status !== 0) throw new Error(`${path.basename(cmd)} failed (${result.status ?? result.error})`);
+};
+const frames = fs.mkdtempSync(path.join(os.tmpdir(), 'ascii-demo-'));
+try {
+  run('py', ['tools/record-ascii-demo.py', SRC, frames, String(FPS * SECONDS), String(FPS)]);
+  run(ffmpeg, ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(frames, 'f%04d.png'),
+    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '24', '-preset', 'slow', '-movflags', '+faststart',
+    '-map_metadata', '-1', '-fflags', '+bitexact', '-an', path.join(OUT, 'demo.mp4')]);
+  await sharp(path.join(frames, 'f0120.png')).resize({ width: 1280 }).webp({ quality: 82 }).toFile(path.join(OUT, 'demo-poster.webp'));
+  console.log(`wrote ${OUT}/demo.mp4 and ${OUT}/demo-poster.webp`);
+} finally {
+  fs.rmSync(frames, { recursive: true, force: true });
+}
+```
+
+In `package.json` `"scripts"`, add `"video:ascii": "node tools/capture-ascii-demo.mjs",`. Like `video:halcyon`, it is not part of `npm run media`.
+
+- [ ] **Step 3: Record it and look**
+
+Copy the demo into `raw/ascii/` as described under Interfaces, then run `npm run video:ascii && npm run check:media`.
+Expected:
+- `saved 300 frames of 1280x720`, then the `wrote …` line;
+- the metadata check passes;
+- `demo.mp4` is about 1–4 MB.
+
+Open `public/projects/ascii-mirror/demo-poster.webp` with the Read tool. Check that:
+- the ASCII figure stands on the street with room around it;
+- the HUD reads `30 fps`;
+- there are no help lines.
+
+Change `SHRINK_STEPS` if the figure is too big or too small.
+
+Run `node -e "const s=require('fs').readFileSync('public/projects/ascii-mirror/demo.mp4');console.log(/title|comment|artist|location/i.test(s.toString('latin1')) ? 'METADATA FOUND' : 'no metadata tags')"`.
+Expected: `no metadata tags`.
+
+- [ ] **Step 4: Add it to the chapter**
+
+In `src/content/projects.js`, in the `ascii-mirror` entry, make this the **second** item of `media`, after the model:
+```js
+      { type: 'video', src: 'demo.mp4', poster: 'demo-poster.webp', alt: 'A screen recording of the Windows demo: a figure drawn in neon ASCII characters walks along a rainy cyberpunk street at night', caption: 'The Windows demo Claude Code wrote: a figure that follows the mouse, drawn as neon ASCII over a cyberpunk city.' },
+```
+
+- [ ] **Step 5: Run the tests**
+
+Run: `npx playwright test tests/e2e/video.spec.js tests/e2e/content.spec.js tests/e2e/site.spec.js`
+Expected: all PASS.
+
+Run: `npm test`
+Expected: all PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add tools/record-ascii-demo.py tools/capture-ascii-demo.mjs package.json src/content/projects.js tests/e2e/video.spec.js public/projects/ascii-mirror/demo.mp4 public/projects/ascii-mirror/demo-poster.webp
+git commit -m "feat: add a headless recording of the Windows ASCII demo to the ASCII Mirror panel" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 7: Posters, docs and a full check
+
+**Files:**
+- Modify: `CLAUDE.md`
+- Regenerated and committed: `public/posters/ascii-mirror.webp`. The other five posters must come out byte-identical.
+
+**Interfaces:**
+- **Consumes:** everything above.
+- **Produces:** the ASCII chapter's poster, and an accurate CLAUDE.md.
+
+- [ ] **Step 1: Regenerate the posters and look**
+
+Run: `npm run posters && npm run check:media`
+Expected: six `poster:` lines and no `[page]` errors.
+
+Run: `git status --short public/posters`
+Expected: only `public/posters/ascii-mirror.webp` changed. Restore any other poster with `git checkout -- <file>` and report it.
+
+Open the new poster with the Read tool. It should show the Pi build as green ASCII, exploded, with the mount near-white.
+
+- [ ] **Step 2: Update CLAUDE.md**
+
+Keep its CRLF line endings, and use exact-string edits.
+
+1. **Commands table.** Add these three rows after the `npm run led:reference` row:
+   ```
+   | `npm run model:pi` | Compresses `raw/pi/baseline_assembly.glb` into `public/projects/ascii-mirror/pi-assembly.glb` (meshopt, quantised, all 7 named parts) |
+   | `npm run poster:model` | Builds the site and saves the ASCII Mirror's 3D viewer as its `model-poster.webp` |
+   | `npm run video:ascii` | Records the Windows ASCII demo headless (copy it to `raw/ascii/ascii_cyberpunk.py` first; needs `py` with pygame-ce and numpy) into `demo.mp4` and `demo-poster.webp` |
+   ```
+2. **Status section.** Replace its paragraph with:
+   ```
+   Milestones 1 to 5 are in place: the shell and the HALCYON, DEAD TIRED, Pico Light Show and ASCII Mirror worlds. HALCYON uses its own "halcyon" world; DEAD TIRED uses the reusable "layers" world (a design's layers, from a layers.json manifest, float apart and slide together); Pico Light Show uses the "pico" world (a 20-LED strip running the boot.py port, with bloom), with effect chips and a live code panel from src/ui/light-show.js; ASCII Mirror uses the "ascii" world (the Pi build as green ASCII that explodes on scroll), with the opt-in webcam mirror from src/ui/mirror.js and a 3D model viewer in its panel from src/ui/model-viewer.js. No chapter uses the "picture" world now; it stays as the fallback for new projects. The hero uses "index" and the next slot uses "dormant". Launch is milestone 6. Plans live in `docs/superpowers/plans/`.
+   ```
+
+- [ ] **Step 3: Run everything and review the screenshots**
+
+Run: `npm test && npm run test:e2e`
+Expected: everything passes. Run the e2e suite in the background and wait for it.
+
+Open these four screenshots with the Read tool:
+- `screens/desktop-ascii-mirror.png`
+- `screens/desktop-ascii-mirror-panel.png`
+- `screens/mobile-ascii-mirror.png`
+- `screens/mobile-ascii-mirror-panel.png`
+
+Check that:
+- the title and the "Try the mirror" button are readable over the ASCII;
+- the viewer, the part list and the demo video sit correctly in the panel;
+- nothing overflows on the phone.
+
+Fix only CSS for anything wrong, then run the suite again.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add CLAUDE.md public/posters
+git commit -m "chore: regenerate the ASCII Mirror poster and update CLAUDE.md for its world, mirror and viewer" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 8: Milestone review with Oscar
+
+**Files:** none, unless the review asks for fixes.
+
+- [ ] **Step 1:** Run `npm test && npm run test:e2e && npm run check && npm run check:media`. Expected: all green.
+- [ ] **Step 2:** Show Oscar the chapter:
+  - Stop any running dev server, then start the preview with `preview_start` (name `portfolio-dev`).
+  - Scroll through the ASCII Mirror chapter so the build explodes, then scroll down to the viewer and the demo video.
+  - Take screenshots and send the best two to Oscar with `SendUserFile`.
+  - Ask him to try "Try the mirror" himself in the preview pane. His browser will ask for camera permission, and the choice is his.
+- [ ] **Step 3:** Ask Oscar whether it looks and feels right.
+  - **Readings to check:** name the plan's deliberate readings: the highlight colour, the text mirror when there's no 3D stage, when the camera stops, the viewer's scroll behaviour, and no simplification.
+  - **New dev tools:** say that four gltf-transform dev packages were added, and that the demo recording came from his `files` folder, outside the project's configured sources.
+  - **Fixes:** make the small fixes he asks for, rerun Step 1, and commit each fix.
+
+Milestone 5 is done when Oscar says it looks right.
