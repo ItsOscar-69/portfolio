@@ -3,8 +3,20 @@ import { test, expect } from '@playwright/test';
 const scrollToId = (page, id) => page.evaluate((el) => document.getElementById(el).scrollIntoView({ block: 'start' }), id);
 
 // A stand-in camera: a bright disc moving on black, from a canvas stream. It records every getUserMedia request.
-function fakeCamera({ fail } = {}) {
+// holdCamera: getUserMedia waits for window.__camera.releaseCamera(). holdPlay: video.play() waits for releasePlay().
+function fakeCamera({ fail, holdCamera, holdPlay } = {}) {
   window.__camera = { requests: [], streams: [] };
+  const gate = (name) => new Promise((resolve) => { window.__camera[name] = resolve; });
+  const cameraGate = holdCamera ? gate('releaseCamera') : null;
+  const playGate = holdPlay ? gate('releasePlay') : null;
+  if (holdPlay) {
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = async function () {
+      const started = play.call(this).catch(() => {}); // really start playing, but report it late
+      await playGate;
+      return started;
+    };
+  }
   const canvas = document.createElement('canvas');
   canvas.width = 320;
   canvas.height = 240;
@@ -22,11 +34,16 @@ function fakeCamera({ fail } = {}) {
   navigator.mediaDevices.getUserMedia = async (constraints) => {
     window.__camera.requests.push(constraints);
     if (fail) throw new DOMException('Permission denied', fail);
+    if (cameraGate) await cameraGate;
     const stream = canvas.captureStream(30);
     window.__camera.streams.push(stream);
     return stream;
   };
 }
+const hideTab = (page) => page.evaluate(() => {
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+  document.dispatchEvent(new Event('visibilitychange'));
+});
 const tracks = (page) => page.evaluate(() => window.__camera.streams.map((s) => s.getVideoTracks()[0].readyState));
 
 test('the camera starts only on a click, shows Camera on, and Stop turns it off', async ({ page }) => {
@@ -58,6 +75,57 @@ test('scrolling away turns the camera off', async ({ page }) => {
   await expect(page.locator('#ascii-mirror').getByText('Camera on')).toBeVisible();
   await scrollToId(page, 'dead-tired');
   await expect.poll(() => tracks(page), { timeout: 5_000 }).toEqual(['ended']);
+});
+
+test('hiding the tab turns the camera off', async ({ page }) => {
+  await page.addInitScript(fakeCamera, {});
+  await page.goto('./');
+  await scrollToId(page, 'ascii-mirror');
+  const chapter = page.locator('#ascii-mirror');
+  await chapter.getByRole('button', { name: 'Try the mirror' }).click();
+  await expect(chapter.getByText('Camera on')).toBeVisible();
+  await hideTab(page);
+  await expect.poll(() => tracks(page), { timeout: 5_000 }).toEqual(['ended']);
+  await expect(chapter.locator('.mirror__on')).toHaveAttribute('hidden', '');
+});
+
+test('leaving the page turns the camera off', async ({ page }) => {
+  await page.addInitScript(fakeCamera, {});
+  await page.goto('./');
+  await scrollToId(page, 'ascii-mirror');
+  const chapter = page.locator('#ascii-mirror');
+  await chapter.getByRole('button', { name: 'Try the mirror' }).click();
+  await expect(chapter.getByText('Camera on')).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  await expect.poll(() => tracks(page), { timeout: 5_000 }).toEqual(['ended']);
+});
+
+test('a camera granted after you scrolled away is turned off at once', async ({ page }) => {
+  await page.addInitScript(fakeCamera, { holdCamera: true });
+  await page.goto('./');
+  await scrollToId(page, 'ascii-mirror');
+  const chapter = page.locator('#ascii-mirror');
+  await chapter.getByRole('button', { name: 'Try the mirror' }).click();
+  await page.waitForFunction(() => window.__camera.requests.length === 1);
+  await scrollToId(page, 'dead-tired');
+  await page.waitForTimeout(500);
+  await page.evaluate(() => window.__camera.releaseCamera());
+  await expect.poll(() => tracks(page), { timeout: 5_000 }).toEqual(['ended']);
+  await expect(chapter.locator('.mirror__on')).toHaveAttribute('hidden', '');
+});
+
+test('Camera on never shows if the camera stopped while the video was starting', async ({ page }) => {
+  await page.addInitScript(fakeCamera, { holdPlay: true });
+  await page.goto('./');
+  await scrollToId(page, 'ascii-mirror');
+  const chapter = page.locator('#ascii-mirror');
+  await chapter.getByRole('button', { name: 'Try the mirror' }).click();
+  await page.waitForFunction(() => window.__camera.streams.length === 1);
+  await hideTab(page);
+  await page.evaluate(() => window.__camera.releasePlay());
+  await page.waitForTimeout(500);
+  await expect(chapter.locator('.mirror__on')).toHaveAttribute('hidden', '');
+  expect(await tracks(page)).toEqual(['ended']);
 });
 
 test('no frame leaves the page while the mirror runs', async ({ page }) => {

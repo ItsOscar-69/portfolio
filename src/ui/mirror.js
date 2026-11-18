@@ -110,6 +110,7 @@ export function createMirror({ doc }) {
       stream = got;
       video.srcObject = stream;
       await video.play().catch(() => {});
+      if (!wanted) return; // stopped while the video was starting
       mirror.video = video;
       show(true);
       status.textContent = 'The picture stays in your browser: nothing is sent or saved.';
