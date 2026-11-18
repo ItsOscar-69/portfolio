@@ -7,7 +7,8 @@
   },
   "scripts": {
     "halcyon": "node tools/halcyon.mjs",
-    "media": "node tools/copy-sources.mjs && node tools/halcyon.mjs && node tools/covers.mjs && node tools/capture-halcyon.mjs && node tools/publish-media.mjs && node tools/publish-layers.mjs && node tools/check-media.mjs",
+    "model:pi": "node tools/publish-model.mjs",
+    "media": "node tools/copy-sources.mjs && node tools/halcyon.mjs && node tools/covers.mjs && node tools/capture-halcyon.mjs && node tools/publish-media.mjs && node tools/publish-layers.mjs && node tools/publish-model.mjs && node tools/check-media.mjs",
     "layers:dead-tired": "node tools/publish-layers.mjs",
     "led:reference": "python tools/led-reference.py public/projects/pico-light-show/boot.py 1543 5030 tests/fixtures/boot-reference.json",
     "video:halcyon": "node tools/capture-halcyon-video.mjs",
@@ -32,10 +33,17 @@
   "devDependencies": {
     "@fontsource/ibm-plex-mono": "5.3.0",
     "@fontsource/noto-sans-jp": "5.3.1",
+    "@gltf-transform/core": "4.5.1",
+    "@gltf-transform/extensions": "4.5.1",
+    "@gltf-transform/functions": "4.5.1",
     "@playwright/test": "1.61.1",
     "ffmpeg-static": "5.2.0",
+    "meshoptimizer": "0.25.0",
     "sharp": "0.32.6",
     "vite": "6.4.1",
     "vitest": "3.2.4"
+  },
+  "overrides": {
+    "ndarray-pixels": { "sharp": "$sharp" }
   }
 }
