@@ -22,6 +22,9 @@ Oscar's public portfolio of projects built with Claude Code. It goes live at htt
 | `npm run video:halcyon` | Re-records the HALCYON screen video (H.264 MP4 + WebP poster) from the live copy in `public/halcyon/`. The first time on a machine, run `npx playwright install ffmpeg` (Playwright's recorder needs its own ffmpeg build). |
 | `npm run layers:dead-tired` | Re-crops the DEAD TIRED layer PNGs from `raw/tee/layers/` into `public/projects/dead-tired/layers/` plus its `layers.json` manifest |
 | `npm run led:reference` | Runs the real Pico `boot.py` under Python 3 and rewrites `tests/fixtures/boot-reference.json`, which the LED-port tests compare against (only needed if `boot.py` changes) |
+| `npm run model:pi` | Compresses `raw/pi/baseline_assembly.glb` into `public/projects/ascii-mirror/pi-assembly.glb` (meshopt, quantised, all 7 named parts) |
+| `npm run poster:model` | Builds the site and saves the ASCII Mirror's 3D viewer as its `model-poster.webp` |
+| `npm run video:ascii` | Records the Windows ASCII demo headless (copy it to `raw/ascii/ascii_cyberpunk.py` first; needs `py` with pygame-ce and numpy) into `demo.mp4` and `demo-poster.webp` |
 | `npm run to-webp -- <input> <output.webp>` | Converts one image to a 1800 px WebP plus a `-900.webp` copy, with metadata stripped |
 | `npm run posters` | Builds the site and re-renders the still poster for every scene into `public/posters/` |
 | `npm run build` | Production build into `dist/` |
@@ -70,4 +73,4 @@ If `create` throws, or `update` throws, that chapter falls back to its poster an
 
 ## Status
 
-Milestones 1 (shell), 2 (HALCYON world), 3 (DEAD TIRED world) and 4 (Pico Light Show world) are in place. HALCYON uses its own "halcyon" world; DEAD TIRED uses the reusable "layers" world (a design's layers, from a layers.json manifest, float apart and slide together); Pico Light Show uses the "pico" world (a 20-LED strip running the boot.py port, with bloom), with effect chips and a live code panel from src/ui/light-show.js; ASCII Mirror still uses the "picture" world; the hero uses "index" and the next slot uses "dormant". The custom world still to come is ASCII Mirror (5). Launch is milestone 6. Plans live in `docs/superpowers/plans/`.
+Milestones 1 to 5 are in place: the shell and the HALCYON, DEAD TIRED, Pico Light Show and ASCII Mirror worlds. HALCYON uses its own "halcyon" world; DEAD TIRED uses the reusable "layers" world (a design's layers, from a layers.json manifest, float apart and slide together); Pico Light Show uses the "pico" world (a 20-LED strip running the boot.py port, with bloom), with effect chips and a live code panel from src/ui/light-show.js; ASCII Mirror uses the "ascii" world (the Pi build as green ASCII that explodes on scroll), with the opt-in webcam mirror from src/ui/mirror.js and a 3D model viewer in its panel from src/ui/model-viewer.js. No chapter uses the "picture" world now; it stays as the fallback for new projects. The hero uses "index" and the next slot uses "dormant". Launch is milestone 6. Plans live in `docs/superpowers/plans/`.
