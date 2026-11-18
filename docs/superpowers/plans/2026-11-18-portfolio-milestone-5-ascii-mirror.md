@@ -1725,7 +1725,7 @@ git commit -m "chore: regenerate the ASCII Mirror poster and update CLAUDE.md fo
   - Ask him to try "Try the mirror" himself in the preview pane. His browser will ask for camera permission, and the choice is his.
 - [ ] **Step 3:** Ask Oscar whether it looks and feels right.
   - **Readings to check:** name the plan's deliberate readings: the highlight colour, the text mirror when there's no 3D stage, when the camera stops, the viewer's scroll behaviour, and no simplification.
-  - **New dev tools:** say that four gltf-transform dev packages were added, and that the demo recording came from his `files` folder, outside the project's configured sources.
+  - **New dev tools:** say that four gltf-transform dev packages were added, and that the demo recording came from a copy of his demo kept outside the project's configured sources.
   - **Fixes:** make the small fixes he asks for, rerun Step 1, and commit each fix.
 
 Milestone 5 is done when Oscar says it looks right.
