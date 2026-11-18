@@ -40,3 +40,14 @@ html.webgl .scene.is-live .lightshow__strip--intro { display: none; }
 .media--code pre { position: relative; }
 .code-line { display: inline-block; min-width: 100%; min-height: 1.6em; vertical-align: top; }
 .code-line.is-running { background: rgba(57, 208, 255, 0.16); box-shadow: inset 3px 0 0 #39d0ff; }
+.mirror { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 22px; }
+.mirror [hidden], .mirror__ascii[hidden] { display: none !important; }
+.mirror button { padding: 9px 16px; border: 1px solid var(--faint); border-radius: 999px; background: rgba(2, 6, 4, 0.6); color: var(--paper); font: 500 12px/1 var(--font-mono); letter-spacing: 0.04em; cursor: pointer; }
+.mirror button:hover { border-color: var(--paper); }
+.mirror__start { border-color: #39ff88 !important; color: #39ff88 !important; }
+.mirror__on { display: inline-flex; align-items: center; gap: 8px; color: #ff8080; font: 500 12px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.mirror__on::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: #ff3b3b; box-shadow: 0 0 8px #ff3b3b; }
+.mirror__status { flex-basis: 100%; margin: 0; max-width: 52ch; color: var(--muted); font-size: 14px; }
+.mirror__status:empty { display: none; }
+.mirror__ascii { position: absolute; inset: 0; z-index: -1; margin: 0; overflow: hidden; background: #020604; color: #39ff88; font: 400 12px/1 var(--font-mono); white-space: pre; pointer-events: none; }
+html.webgl .scene.is-live .mirror__ascii { display: none; }

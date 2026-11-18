@@ -5,6 +5,7 @@ import { createMenu } from './ui/menu.js';
 import { createPill } from './ui/pill.js';
 import { autoplayVideos } from './ui/media.js';
 import { createLightShow } from './ui/light-show.js';
+import { createMirror } from './ui/mirror.js';
 
 export function readScenes(doc) {
   return Array.from(doc.querySelectorAll('.scene')).map((el) => ({
@@ -120,6 +121,7 @@ export async function startApp({ win = window, doc = document } = {}) {
   } catch (err) {
     console.error('[light show] the controls failed to start; the rest of the page carries on.', err);
   }
+  try { createMirror({ doc }); } catch (err) { console.error('[mirror] the mirror failed to start; the rest of the page carries on.', err); }
 
   let layout = measure(scenes, win);
   let state = sceneState(win.scrollY, win.innerHeight, layout);
