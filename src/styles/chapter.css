@@ -60,3 +60,4 @@ html.webgl .scene.is-live .mirror__ascii { display: none; }
 .model__parts { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
 .model__parts button { padding: 7px 12px; border: 1px solid var(--faint); border-radius: 999px; background: transparent; color: var(--paper); font: 500 12px/1 var(--font-mono); cursor: pointer; }
 .model__parts button:hover, .model__parts button.is-hot { border-color: #39ff88; color: #39ff88; }
+.media--model { width: 100%; max-width: calc(80vh * 4 / 3); justify-self: center; }

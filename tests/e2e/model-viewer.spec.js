@@ -33,7 +33,7 @@ test('focusing a part in the list highlights it, for keyboard visitors', async (
   await expect.poll(() => highlighted(figure)).toBeNull();
 });
 
-test('a wheel over the viewer scrolls the page instead of zooming', async ({ page }) => {
+async function wheelOverViewer(page) {
   await page.goto('./');
   const figure = await viewer(page);
   await expect(figure).toHaveClass(/is-ready/, { timeout: 30_000 });
@@ -42,6 +42,25 @@ test('a wheel over the viewer scrolls the page instead of zooming', async ({ pag
   const before = await page.evaluate(() => scrollY);
   await page.mouse.wheel(0, 600);
   await expect.poll(() => page.evaluate(() => scrollY), { timeout: 5_000 }).toBeGreaterThan(before + 100);
+}
+
+test('a wheel over the viewer scrolls the page instead of zooming', async ({ page }) => {
+  await wheelOverViewer(page);
+});
+
+// Lenis's virtual scroll ignores defaultPrevented, so the test above cannot fail. With reduced motion the page
+// scrolls natively, and a canvas that swallowed the wheel would show.
+test.describe('with reduced motion', () => {
+  test.use({ contextOptions: { reducedMotion: 'reduce' } });
+  test('a wheel over the viewer scrolls the page natively instead of zooming', async ({ page }) => {
+    await wheelOverViewer(page);
+  });
+});
+
+const poster = (figure) => figure.locator('.model__stage img');
+const waitForWarning = (page) => page.waitForEvent('console', {
+  predicate: (m) => m.text().includes('[model viewer]') && m.text().includes('keeping the poster'),
+  timeout: 30_000,
 });
 
 test('without WebGL the poster and the part list stay', async ({ page }) => {
@@ -51,20 +70,22 @@ test('without WebGL the poster and the part list stay', async ({ page }) => {
       return /webgl/i.test(type) ? null : original.call(this, type, ...rest);
     };
   });
+  const warned = waitForWarning(page);
   await page.goto('./');
   const figure = await viewer(page);
-  await page.waitForTimeout(1_500);
+  await warned;
   await expect(figure).not.toHaveClass(/is-ready/);
-  await expect(figure.locator('.model__stage img')).toBeVisible();
+  await expect.poll(() => poster(figure).evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
   await expect(figure.getByRole('list', { name: 'Parts of the build' }).getByRole('button')).toHaveCount(7);
 });
 
 test('if the model fails to load, the poster and the part list stay', async ({ page }) => {
   await page.route('**/projects/ascii-mirror/pi-assembly.glb', (route) => route.abort());
+  const warned = waitForWarning(page);
   await page.goto('./');
   const figure = await viewer(page);
-  await page.waitForTimeout(1_500);
+  await warned;
   await expect(figure).not.toHaveClass(/is-ready/);
-  await expect(figure.locator('.model__stage img')).toBeVisible();
+  await expect.poll(() => poster(figure).evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
   await expect(figure.getByRole('list', { name: 'Parts of the build' }).getByRole('button')).toHaveCount(7);
 });

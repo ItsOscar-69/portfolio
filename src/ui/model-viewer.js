@@ -49,7 +49,7 @@ export function createModelViewers({ doc, reduced = false }) {
       if (!fn) return;
       apply = fn;
       apply(figure.dataset.highlight || null);
-    });
+    }).catch((err) => console.warn('[model viewer] the viewer failed to start; keeping the poster.', err));
     if ('IntersectionObserver' in win) {
       const near = new win.IntersectionObserver((entries) => {
         if (entries.some((e) => e.isIntersecting)) {
@@ -82,8 +82,7 @@ async function mount({ figure, stage, doc, win, reduced }) {
   }
   const canvas = doc.createElement('canvas');
   canvas.className = 'model__canvas';
-  canvas.setAttribute('role', 'img');
-  canvas.setAttribute('aria-label', '3D view of the Pi 5 build. Drag sideways to turn it.');
+  canvas.setAttribute('aria-hidden', 'true'); // the poster's alt text describes the viewer
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -93,7 +92,7 @@ async function mount({ figure, stage, doc, win, reduced }) {
   }
   THREE.ColorManagement.enabled = false; // colours pass through raw, as on the stage
   renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-  renderer.setPixelRatio(Math.min(win.devicePixelRatio || 1, 2));
+  renderer.setPixelRatio(Math.min(win.devicePixelRatio || 1, 1.5));
   let gltf;
   try {
     gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(figure.dataset.model);
