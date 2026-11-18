@@ -23,8 +23,10 @@ try {
   run('py', ['tools/record-ascii-demo.py', SRC, frames, String(FPS * SECONDS), String(FPS)]);
   run(ffmpeg, ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(frames, 'f%04d.png'),
     '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '24', '-preset', 'slow', '-movflags', '+faststart',
-    '-map_metadata', '-1', '-fflags', '+bitexact', '-an', path.join(OUT, 'demo.mp4')]);
-  await sharp(path.join(frames, 'f0120.png')).resize({ width: 1280 }).webp({ quality: 82 }).toFile(path.join(OUT, 'demo-poster.webp'));
+    '-x264-params', 'no-info=1', '-bsf:v', 'filter_units=remove_types=6', '-map_metadata', '-1', '-fflags', '+bitexact', '-an', path.join(frames, 'demo.mp4')]);
+  await sharp(path.join(frames, 'f0120.png')).resize({ width: 1280 }).webp({ quality: 82 }).toFile(path.join(frames, 'demo-poster.webp'));
+  fs.mkdirSync(OUT, { recursive: true });
+  for (const name of ['demo.mp4', 'demo-poster.webp']) fs.copyFileSync(path.join(frames, name), path.join(OUT, name)); // copy: the temp dir may be on another drive
   console.log(`wrote ${OUT}/demo.mp4 and ${OUT}/demo-poster.webp`);
 } finally {
   fs.rmSync(frames, { recursive: true, force: true });
