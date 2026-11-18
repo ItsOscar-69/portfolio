@@ -6,7 +6,8 @@ const TEXT_PX = 12; // the text fallback's character size; JetBrains Mono's char
 // "Try the mirror" (spec §4.3): an opt-in webcam drawn by the ASCII pass.
 // - It starts only on a click, and asks for video only.
 // - While it runs, "Camera on" and a Stop button show.
-// - It stops by itself when the chapter leaves the screen, the tab is hidden or the page closes.
+// - It stops by itself when its controls ("Camera on" and Stop) leave the screen, the camera ends, the tab is hidden or the
+//   page closes.
 // - Frames never leave the browser. The <video> is drawn only into the page: by the ascii world, or by the text
 //   fallback below when no 3D world is drawing. Nothing is sent, stored or recorded.
 export function createMirror({ doc }) {
@@ -30,6 +31,7 @@ export function createMirror({ doc }) {
   const status = make('p', 'mirror__status');
   startButton.type = 'button';
   stopButton.type = 'button';
+  stopButton.setAttribute('aria-label', 'Stop the camera');
   status.setAttribute('role', 'status');
   indicator.hidden = true;
   stopButton.hidden = true;
@@ -39,7 +41,9 @@ export function createMirror({ doc }) {
   const text = make('pre', 'mirror__ascii');
   text.setAttribute('aria-hidden', 'true');
   text.hidden = true;
-  frame.prepend(text);
+  const poster = frame.querySelector('.scene__poster');
+  if (poster) poster.after(text);
+  else frame.prepend(text);
 
   const video = doc.createElement('video');
   video.muted = true;
@@ -81,6 +85,7 @@ export function createMirror({ doc }) {
   }
 
   function stop() {
+    const stopHadFocus = doc.activeElement === stopButton;
     wanted = false;
     if (stream) stream.getTracks().forEach((track) => track.stop());
     stream = null;
@@ -89,10 +94,14 @@ export function createMirror({ doc }) {
     if (raf) win.cancelAnimationFrame(raf);
     raf = 0;
     status.textContent = '';
+    sample.width = 0; // let go of the last low-resolution frame
+    sample.height = 0;
     show(false);
+    if (stopHadFocus) startButton.focus({ preventScroll: true }); // never leave focus on a hidden button
   }
 
   async function start() {
+    const hadFocus = doc.activeElement === startButton;
     status.textContent = '';
     const devices = win.navigator.mediaDevices;
     if (!devices || typeof devices.getUserMedia !== 'function') {
@@ -108,12 +117,18 @@ export function createMirror({ doc }) {
         return;
       }
       stream = got;
+      got.getVideoTracks().forEach((track) => track.addEventListener('ended', () => {
+        if (!wanted || stream !== got) return;
+        stop();
+        status.textContent = 'The camera was turned off.';
+      }));
       video.srcObject = stream;
       await video.play().catch(() => {});
       if (!wanted) return; // stopped while the video was starting
       mirror.video = video;
       show(true);
-      status.textContent = 'The picture stays in your browser: nothing is sent or saved.';
+      if (hadFocus) stopButton.focus();
+      status.textContent = 'Camera on. The picture stays in your browser: nothing is sent or saved.';
       raf = win.requestAnimationFrame(drawText);
     } catch (err) {
       stop();
@@ -124,15 +139,21 @@ export function createMirror({ doc }) {
   }
 
   startButton.addEventListener('click', start);
-  stopButton.addEventListener('click', () => {
-    stop();
-    startButton.focus();
-  });
+  stopButton.addEventListener('click', stop);
   // The camera never stays on behind your back.
   if ('IntersectionObserver' in win) {
-    new win.IntersectionObserver(([entry]) => { if (!entry.isIntersecting && wanted) stop(); }).observe(chapter);
+    new win.IntersectionObserver((entries) => {
+      const entry = entries[entries.length - 1];
+      if (entry.isIntersecting || !wanted) return;
+      stop();
+      status.textContent = 'The camera stopped when you scrolled away.';
+    }).observe(controls);
   }
-  doc.addEventListener('visibilitychange', () => { if (doc.hidden && wanted) stop(); });
+  doc.addEventListener('visibilitychange', () => {
+    if (!doc.hidden || !wanted) return;
+    stop();
+    status.textContent = 'The camera stopped when you left the tab.';
+  });
   win.addEventListener('pagehide', () => { if (wanted) stop(); });
   return { start, stop, controls };
 }
