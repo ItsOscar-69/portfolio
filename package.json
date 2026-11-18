@@ -12,6 +12,7 @@
     "layers:dead-tired": "node tools/publish-layers.mjs",
     "led:reference": "python tools/led-reference.py public/projects/pico-light-show/boot.py 1543 5030 tests/fixtures/boot-reference.json",
     "video:halcyon": "node tools/capture-halcyon-video.mjs",
+    "video:ascii": "node tools/capture-ascii-demo.mjs",
     "check": "node tools/check-content.mjs",
     "posters": "vite build && node tools/posters.mjs",
     "poster:model": "vite build && node tools/model-poster.mjs",

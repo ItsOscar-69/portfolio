@@ -39,3 +39,13 @@ test.describe('with reduced motion', () => {
     await expect(video).toHaveAttribute('controls', '');
   });
 });
+
+test('the ASCII demo recording plays muted on a loop while on screen', async ({ page }) => {
+  await page.goto('./');
+  const video = page.locator('#ascii-mirror video');
+  await expect(video).toHaveAttribute('loop', '');
+  expect(await video.evaluate((v) => v.muted)).toBe(true);
+  await video.scrollIntoViewIfNeeded();
+  await expect.poll(() => video.evaluate((v) => !v.paused && v.currentTime > 0), { timeout: 20_000 }).toBe(true);
+  expect(await video.evaluate((v) => [v.videoWidth, v.videoHeight])).toEqual([1280, 720]);
+});
