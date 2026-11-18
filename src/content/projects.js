@@ -66,6 +66,7 @@ export const projects = [
       inside: 'A Raspberry Pi 5 with an AI HAT+ (13 TOPS) and Camera Module 3, an OpenSCAD model with a fit-check script, and a Python demo that draws a moving figure in neon ASCII.',
     },
     media: [
+      { type: 'model', src: 'pi-assembly.glb', poster: 'model-poster.webp', alt: 'A 3D model of the Pi 5 build: the case, the Raspberry Pi 5, the AI HAT+ on its spacers, and Camera Module 3 in its printed mount', caption: 'The whole build in 3D. Drag to turn it, and point at a part in the list to find it.' },
       { type: 'image', src: 'cover.webp', alt: 'A figure drawn in green ASCII characters on a black background', caption: 'The look: brightness becomes characters, from dots up to @ signs.' },
     ],
   },

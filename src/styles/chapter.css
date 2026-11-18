@@ -51,3 +51,11 @@ html.webgl .scene.is-live .lightshow__strip--intro { display: none; }
 .mirror__status:empty { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .mirror__ascii { position: absolute; inset: 0; z-index: -1; margin: 0; overflow: hidden; background: #020604; color: #39ff88; font: 400 12px/1 var(--font-mono); white-space: pre; pointer-events: none; }
 html.webgl .scene.is-live .mirror__ascii { display: none; }
+.model__stage { position: relative; aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--radius); background: var(--ink-2); }
+.model__stage > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity 0.4s ease; }
+.media--model.is-ready .model__stage > img { opacity: 0; }
+.model__canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; cursor: grab; }
+.model__canvas:active { cursor: grabbing; }
+.model__parts { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.model__parts button { padding: 7px 12px; border: 1px solid var(--faint); border-radius: 999px; background: transparent; color: var(--paper); font: 500 12px/1 var(--font-mono); cursor: pointer; }
+.model__parts button:hover, .model__parts button.is-hot { border-color: #39ff88; color: #39ff88; }
