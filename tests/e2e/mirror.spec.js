@@ -238,6 +238,7 @@ test.describe('with reduced motion', () => {
     });
     expect(opacity).toBeLessThan(1);
     expect(zIndex).toBeLessThan(scrimZ);
+    expect(await text.evaluate((el) => el.parentElement.className)).toContain('scene__frame');
   });
 });
 

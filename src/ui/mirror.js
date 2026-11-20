@@ -42,7 +42,8 @@ export function createMirror({ doc }) {
   text.setAttribute('aria-hidden', 'true');
   text.hidden = true;
   const poster = frame.querySelector('.scene__poster');
-  if (poster) poster.after(text);
+  const anchor = poster ? poster.closest('picture') || poster : null; // after the <picture>, never inside it
+  if (anchor) anchor.after(text);
   else frame.prepend(text);
 
   const video = doc.createElement('video');

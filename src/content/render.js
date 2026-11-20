@@ -19,8 +19,11 @@ export function formatDate(ym) {
 
 export const assetUrl = (base, id, file) => withBase(base, `/projects/${id}/${file}`);
 
+// The poster behind a scene's text: a 9:16 portrait still on tall screens (phones, tablets held upright) and the
+// 16:10 still elsewhere. The <img> keeps the scene__poster class, so CSS and scripts find it either way.
 export function posterImg(id, base, lazy) {
-  return `<img class="scene__poster" src="${escapeHtml(withBase(base, `/posters/${id}.webp`))}" alt="" aria-hidden="true" decoding="async"${lazy ? ' loading="lazy"' : ''}>`;
+  const src = (name) => escapeHtml(withBase(base, `/posters/${name}.webp`));
+  return `<picture class="scene__picture"><source media="(max-aspect-ratio: 4/5)" srcset="${src(`${id}-portrait`)}"><img class="scene__poster" src="${src(id)}" alt="" aria-hidden="true" decoding="async"${lazy ? ' loading="lazy"' : ''}></picture>`;
 }
 
 const paragraphs = (text) => text.split(/\n\s*\n/).map((p) => `<p>${escapeHtml(p.trim())}</p>`).join('');

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   escapeHtml, withBase, formatDate, renderChapter, renderMedia, renderMenuItems,
-  renderHeroLinks, renderCount, renderPage,
+  renderHeroLinks, renderCount, renderPage, posterImg,
 } from '../../src/content/render.js';
 
 const project = (over = {}) => ({
@@ -137,4 +137,12 @@ describe('menu, hero links and page', () => {
   it('throws if a marker is missing', () => {
     expect(() => renderPage('<!--@count-->', list, { base: '/' })).toThrow(/missing the <!--@hero-links--> marker/);
   });
+});
+
+it('serves the portrait poster to tall screens and the landscape one elsewhere', () => {
+  const html = posterImg('dead-tired', '/', true);
+  expect(html).toContain('<picture class="scene__picture">');
+  expect(html).toContain('<source media="(max-aspect-ratio: 4/5)" srcset="/posters/dead-tired-portrait.webp">');
+  expect(html).toContain('<img class="scene__poster" src="/posters/dead-tired.webp"');
+  expect(html).toContain('loading="lazy"');
 });
