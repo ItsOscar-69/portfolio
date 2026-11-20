@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const SIZES = [[375, 812], [812, 375], [768, 1024], [1000, 900], [1440, 900]];
+const SIZES = [[375, 812], [812, 375], [667, 375], [640, 360], [768, 1024], [1000, 900], [1440, 900]];
 const overlaps = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 
 for (const [width, height] of SIZES) {

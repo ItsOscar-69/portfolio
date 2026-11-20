@@ -70,4 +70,6 @@ html.webgl .scene.is-live .mirror__ascii { display: none; }
   .chapter__hook { margin-top: 8px; font-size: 15px; }
   .lightshow, .mirror { margin-top: 10px; }
   .lightshow { max-width: none; }
+  .lightshow__strip--intro { margin-right: 0; margin-bottom: 0; }
+  .chapter__meta { letter-spacing: 0.03em; }
 }
