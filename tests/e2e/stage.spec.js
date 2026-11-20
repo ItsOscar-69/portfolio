@@ -36,3 +36,29 @@ test('still mode renders a single world for posters', async ({ page }) => {
   await page.goto('./?still=next&tier=high');
   await expect(page.locator('html')).toHaveAttribute('data-still-ready', '1', { timeout: 60_000 });
 });
+
+test('the stage stops drawing while a chapter panel fills the screen, and starts again after it', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__draws = 0;
+    for (const proto of [WebGL2RenderingContext.prototype, WebGLRenderingContext.prototype]) {
+      for (const name of ['drawArrays', 'drawElements']) {
+        const original = proto[name];
+        proto[name] = function (...args) { window.__draws++; return original.apply(this, args); };
+      }
+    }
+  });
+  await page.goto('./');
+  await page.evaluate(() => document.getElementById('dead-tired').scrollIntoView({ block: 'start' }));
+  await expect(page.locator('#dead-tired')).toHaveClass(/is-live/, { timeout: 30_000 });
+  expect(await page.evaluate(() => document.querySelector('#dead-tired .chapter__panel').offsetHeight)).toBeGreaterThan(1400);
+  await page.evaluate(() => {
+    const panel = document.querySelector('#dead-tired .chapter__panel');
+    window.scrollTo(0, panel.getBoundingClientRect().top + window.scrollY + 200);
+  });
+  await page.waitForTimeout(800);
+  const before = await page.evaluate(() => window.__draws);
+  await page.waitForTimeout(1000);
+  expect(await page.evaluate(() => window.__draws)).toBe(before);
+  await page.evaluate(() => document.getElementById('dead-tired').scrollIntoView({ block: 'start' }));
+  await expect.poll(() => page.evaluate(() => window.__draws), { timeout: 5_000 }).toBeGreaterThan(before);
+});

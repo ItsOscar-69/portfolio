@@ -11,3 +11,4 @@
 .menu__link[aria-current='true'] { font-weight: 500; }
 .menu__soon { opacity: 0.45; }
 .menu .mono { padding-top: 3px; }
+.fps { position: fixed; left: 12px; bottom: 12px; z-index: 40; padding: 5px 8px; border-radius: 6px; background: rgba(0, 0, 0, 0.75); color: #39ff88; font: 500 12px/1 var(--font-mono); pointer-events: none; }

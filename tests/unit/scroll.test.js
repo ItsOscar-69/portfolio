@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { clamp01, sceneState } from '../../src/lib/scroll.js';
+import { clamp01, sceneState, coveredBy } from '../../src/lib/scroll.js';
 
 const scenes = [{ start: 0, length: 1000 }, { start: 2000, length: 1000 }, { start: 5000, length: 500 }];
 const vh = 1000;
@@ -39,5 +39,16 @@ describe('clamp01', () => {
     expect(clamp01(-1)).toBe(0);
     expect(clamp01(0.3)).toBe(0.3);
     expect(clamp01(9)).toBe(1);
+  });
+});
+
+describe('coveredBy', () => {
+  const panels = [{ top: 2000, bottom: 5000 }];
+  it('is true only while a panel fills the whole viewport', () => {
+    expect(coveredBy(2000, 1000, panels)).toBe(true);
+    expect(coveredBy(4000, 1000, panels)).toBe(true);
+    expect(coveredBy(1999, 1000, panels)).toBe(false); // a pixel of the scene still shows above
+    expect(coveredBy(4001, 1000, panels)).toBe(false); // the next scene shows below
+    expect(coveredBy(0, 1000, [])).toBe(false);
   });
 });

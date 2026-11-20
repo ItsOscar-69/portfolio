@@ -1,5 +1,5 @@
 import Lenis from 'lenis';
-import { sceneState } from './lib/scroll.js';
+import { sceneState, coveredBy } from './lib/scroll.js';
 import { lifecyclePlan } from './lib/lifecycle.js';
 import { createMenu } from './ui/menu.js';
 import { createPill } from './ui/pill.js';
@@ -7,6 +7,7 @@ import { autoplayVideos } from './ui/media.js';
 import { createLightShow } from './ui/light-show.js';
 import { createMirror } from './ui/mirror.js';
 import { createModelViewers } from './ui/model-viewer.js';
+import { createFpsMeter } from './ui/fps.js';
 
 export function readScenes(doc) {
   return Array.from(doc.querySelectorAll('.scene')).map((el) => ({
@@ -23,6 +24,14 @@ function measure(scenes, win) {
   return scenes.map(({ el }) => {
     const track = el.querySelector('.scene__track') || el;
     return { start: el.getBoundingClientRect().top + y, length: Math.max(1, track.offsetHeight - vh) };
+  });
+}
+
+function measurePanels(doc, win) {
+  const y = win.scrollY;
+  return Array.from(doc.querySelectorAll('.chapter__panel')).map((el) => {
+    const r = el.getBoundingClientRect();
+    return { top: r.top + y, bottom: r.bottom + y };
   });
 }
 
@@ -46,6 +55,7 @@ export async function startApp({ win = window, doc = document } = {}) {
   const still = params.get('still');
   const reduced = win.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const scenes = readScenes(doc);
+  const fps = params.has('fps') && !still ? createFpsMeter(doc) : null;
 
   let stage = null;
   const failed = new Set();
@@ -71,6 +81,7 @@ export async function startApp({ win = window, doc = document } = {}) {
       const { createStage } = await import('./stage/stage.js');
       stage = createStage(doc.querySelector('canvas.stage'), stageOptions());
       html.classList.add('webgl');
+      if (fps) fps.setTier(stage.tier);
     } catch (err) {
       stage = null;
       console.warn('[stage] WebGL is unavailable; showing posters.', err);
@@ -126,13 +137,14 @@ export async function startApp({ win = window, doc = document } = {}) {
   try { createModelViewers({ doc, reduced }); } catch (err) { console.error('[model viewer] the viewer failed to start; the rest of the page carries on.', err); }
 
   let layout = measure(scenes, win);
+  let panels = measurePanels(doc, win);
   let state = sceneState(win.scrollY, win.innerHeight, layout);
   const updateUi = () => {
     state = sceneState(win.scrollY, win.innerHeight, layout);
     pill.update(state.display);
     menu.setCurrent(state.display - 1);
   };
-  const remeasure = () => { layout = measure(scenes, win); updateUi(); };
+  const remeasure = () => { layout = measure(scenes, win); panels = measurePanels(doc, win); updateUi(); };
   win.addEventListener('resize', remeasure);
   if ('ResizeObserver' in win) new win.ResizeObserver(remeasure).observe(doc.body);
   doc.fonts?.ready.then(remeasure);
@@ -156,10 +168,13 @@ export async function startApp({ win = window, doc = document } = {}) {
     last = now;
     if (lenis) lenis.raf(now);
     updateUi();
+    if (fps) fps.tick(now);
     if (!stage) return;
     const plan = lifecyclePlan(state.active, stage.loaded(), scenes.length);
     plan.dispose.forEach((i) => stage.release(i));
     plan.load.forEach((i) => { if (!failed.has(i)) stage.ensure(i, scenes[i].world, scenes[i].options); });
+    // Nothing behind an opaque panel can be seen, so don't draw while one fills the screen.
+    if (coveredBy(win.scrollY, win.innerHeight, panels)) return;
     stage.frame({ time: now / 1000, delta, state, pointer });
   };
   raf = win.requestAnimationFrame(tick);

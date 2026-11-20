@@ -11,3 +11,9 @@ export function sceneState(y, vh, scenes) {
   const display = transition > 0.5 ? next : active;
   return { active, next, progress, transition, display };
 }
+
+// panels: [{ top, bottom }] in document px. True while one of them covers the whole viewport, so nothing behind it
+// can be seen.
+export function coveredBy(y, vh, panels) {
+  return panels.some((p) => p.top <= y && p.bottom >= y + vh);
+}
