@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { samplePoints } from '../lib/sample.js';
 import { mulberry32 } from '../lib/rng.js';
 import { particleCount } from '../lib/tier.js';
+import { damp } from '../lib/motion.js';
 
 const vertexShader = /* glsl */ `
 attribute vec3 aScatter;
@@ -31,7 +32,7 @@ void main() {
   vec2 d = gl_PointCoord - 0.5;
   float r = dot(d, d);
   if (r > 0.25) discard;
-  gl_FragColor = vec4(vColor, vAlpha * smoothstep(0.25, 0.05, r));
+  gl_FragColor = vec4(vColor, vAlpha * (1.0 - smoothstep(0.05, 0.25, r)));
 }`;
 
 export async function loadImageData(url, maxSide = 240) {
@@ -97,11 +98,11 @@ export default {
     return {
       scene,
       camera,
-      update({ time, progress, pointer }) {
+      update({ time, delta, progress, pointer }) {
         uniforms.uTime.value = time;
         uniforms.uAssemble.value = Math.min(1, progress / 0.6); // scattered at 0, settled by 0.6
-        group.rotation.y += (pointer.x * 0.25 - group.rotation.y) * 0.05;
-        group.rotation.x += (pointer.y * 0.12 - group.rotation.x) * 0.05;
+        group.rotation.y += (pointer.x * 0.25 - group.rotation.y) * damp(0.05, delta);
+        group.rotation.x += (pointer.y * 0.12 - group.rotation.x) * damp(0.05, delta);
       },
       resize(width, height, dpr) {
         camera.aspect = width / height;

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../lib/rng.js';
 import { particleCount } from '../lib/tier.js';
+import { damp } from '../lib/motion.js';
 import { createTextRing } from './lib/ring.js';
 
 // One colour per chapter world: HALCYON ice/teal, ASCII green, Pico rainbow, DEAD TIRED red/bone.
@@ -33,7 +34,7 @@ void main() {
   vec2 d = gl_PointCoord - 0.5;
   float r = dot(d, d);
   if (r > 0.25) discard;
-  gl_FragColor = vec4(vColor * vAlpha * smoothstep(0.25, 0.0, r), 1.0);
+  gl_FragColor = vec4(vColor * vAlpha * (1.0 - smoothstep(0.0, 0.25, r)), 1.0);
 }`;
 
 function gauss(rng) {
@@ -85,14 +86,14 @@ export default {
     return {
       scene,
       camera,
-      update({ time, progress, pointer }) {
+      update({ time, delta, progress, pointer }) {
         uniforms.uTime.value = time;
         uniforms.uProgress.value = progress;
         ring.mesh.rotation.y = -(time * 0.22 + progress * 2.4); // text slides right-to-left like a marquee
         ring.mesh.position.z = progress * 2.5;
         ring.material.opacity = 1 - progress * 0.7;
-        camera.position.x += (pointer.x * 0.35 - camera.position.x) * 0.04;
-        camera.position.y += (-pointer.y * 0.2 - camera.position.y) * 0.04;
+        camera.position.x += (pointer.x * 0.35 - camera.position.x) * damp(0.04, delta);
+        camera.position.y += (-pointer.y * 0.2 - camera.position.y) * damp(0.04, delta);
         camera.lookAt(0, 0, 0);
       },
       resize(width, height, dpr) {

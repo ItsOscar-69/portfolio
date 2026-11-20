@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { samplePolylines } from '../lib/polyline.js';
 import { mulberry32 } from '../lib/rng.js';
 import { particleCount } from '../lib/tier.js';
+import { damp } from '../lib/motion.js';
 import { svgToPolylines } from './lib/svg-lines.js';
 
 // How each stroke colour in HALCYON's body-wireframe.svg is drawn: [particle colour, density weight, depth offset].
@@ -36,7 +37,7 @@ void main() {
   vec3 p = mix(aScatter, position, e);
   float t = uTime * 0.3 + aSeed * 6.2831;
   p += vec3(sin(t + p.y * 2.3), cos(t * 0.9 + p.x * 1.9), sin(t * 0.7 + p.y)) * (0.004 + 0.05 * (1.0 - e));
-  float scan = smoothstep(0.09, 0.0, abs(position.y - uScanY)) * e;
+  float scan = (1.0 - smoothstep(0.0, 0.09, abs(position.y - uScanY))) * e;
   vec4 mv = modelViewMatrix * vec4(p, 1.0);
   gl_Position = projectionMatrix * mv;
   gl_PointSize = min(20.0, (5.0 + 3.0 * scan) * uScale * (0.7 + aSeed * 0.6) / -mv.z);
@@ -51,7 +52,7 @@ void main() {
   vec2 d = gl_PointCoord - 0.5;
   float r = dot(d, d);
   if (r > 0.25) discard;
-  gl_FragColor = vec4(vColor * vAlpha * smoothstep(0.25, 0.0, r), 1.0);
+  gl_FragColor = vec4(vColor * vAlpha * (1.0 - smoothstep(0.0, 0.25, r)), 1.0);
 }`;
 
 async function loadSvgText(url) {
@@ -162,12 +163,12 @@ export default {
       scene,
       camera,
       ready,
-      update({ time, progress, pointer }) {
+      update({ time, delta, progress, pointer }) {
         uniforms.uTime.value = time;
         uniforms.uAssemble.value = Math.min(1, progress / 0.6); // scattered at 0, settled by 0.6
         uniforms.uScanY.value = BODY_HEIGHT / 2 - ((time * 0.12) % 1) * BODY_HEIGHT;
-        body.rotation.y += (pointer.x * 0.3 - body.rotation.y) * 0.05;
-        body.rotation.x += (pointer.y * 0.1 - body.rotation.x) * 0.05;
+        body.rotation.y += (pointer.x * 0.3 - body.rotation.y) * damp(0.05, delta);
+        body.rotation.x += (pointer.y * 0.1 - body.rotation.x) * damp(0.05, delta);
         panels.forEach((panel) => {
           const i = PANEL_LAYOUT.indexOf(panel.layout);
           panel.group.position.y = panel.layout.y + (progress - 0.5) * 1.8 * panel.layout.speed + Math.sin(time * 0.4 + i * 2) * 0.04;

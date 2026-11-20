@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { damp } from '../lib/motion.js';
 
 const COLS = { high: 160, mid: 110, low: 70 };
 
@@ -9,7 +10,7 @@ uniform float uScale;
 varying float vAlpha;
 void main() {
   vec3 p = position;
-  float glow = smoothstep(1.4, 0.0, distance(p.xy, uPointer));
+  float glow = 1.0 - smoothstep(0.0, 1.4, distance(p.xy, uPointer));
   float breathe = 0.5 + 0.5 * sin(uTime * 0.7 - length(p.xy) * 0.8);
   p.z += glow * 0.3;
   vAlpha = 0.05 + 0.16 * breathe + 0.55 * glow;
@@ -57,10 +58,10 @@ export default {
     return {
       scene,
       camera,
-      update({ time, pointer }) {
+      update({ time, delta, pointer }) {
         uniforms.uTime.value = time;
         target.set(pointer.x * halfH * camera.aspect, -pointer.y * halfH);
-        uniforms.uPointer.value.lerp(target, 0.12);
+        uniforms.uPointer.value.lerp(target, damp(0.12, delta));
       },
       resize(width, height, dpr) {
         camera.aspect = width / height;

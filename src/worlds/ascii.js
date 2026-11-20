@@ -4,6 +4,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RAMP, INK, PAPER, HOT, CELL_PX, gridFor } from '../lib/ascii.js';
 import { PARTS, partFor } from '../lib/pi-parts.js';
 import { mirror } from '../lib/camera.js';
+import { damp } from '../lib/motion.js';
 import { glyphAtlas } from './lib/glyphs.js';
 
 // The ASCII Mirror chapter (spec §4.3): Oscar's Pi 5 build, drawn as green ASCII. Each frame the model is rendered
@@ -116,7 +117,7 @@ export default {
     return {
       scene: screen,
       camera: flat,
-      update({ progress, pointer }) {
+      update({ delta, progress, pointer }) {
         const video = mirror.video;
         if (video !== videoFor) {
           if (videoTexture) videoTexture.dispose();
@@ -136,8 +137,8 @@ export default {
         for (const part of parts) part.object.position.copy(part.base).addScaledVector(part.offset, e);
         const turn = -0.6 + progress * 1.1 + pointer.x * 0.25;
         const tilt = 0.3 + pointer.y * 0.12;
-        pivot.rotation.y += (turn - pivot.rotation.y) * 0.08;
-        pivot.rotation.x += (tilt - pivot.rotation.x) * 0.08;
+        pivot.rotation.y += (turn - pivot.rotation.y) * damp(0.08, delta);
+        pivot.rotation.x += (tilt - pivot.rotation.x) * damp(0.08, delta);
         renderer.setRenderTarget(target);
         renderer.render(scene, camera);
         renderer.setRenderTarget(null);

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mulberry32 } from '../lib/rng.js';
 import { particleCount } from '../lib/tier.js';
 import { parseLayerManifest } from '../lib/layer-manifest.js';
+import { damp } from '../lib/motion.js';
 
 // An "exploded print": a design's layers float apart along Z and slide together into the finished piece.
 const STACK_HEIGHT = 2.0; // world units for the full canvas height
@@ -122,15 +123,15 @@ export default {
     return {
       scene,
       camera,
-      update({ time, progress, pointer }) {
+      update({ time, delta, progress, pointer }) {
         const a = Math.min(1, progress / 0.7); // apart at 0, flat and face-on by 0.7
         const e = a * a * (3 - 2 * a);
         parts.forEach((part, i) => { part.group.position.z = (i - mid) * SPREAD * (1 - e); });
         edgeMaterial.opacity = 0.35 * (1 - e);
         const targetY = -0.6 * (1 - e) + pointer.x * 0.2;
         const targetX = 0.18 * (1 - e) + pointer.y * 0.1;
-        stack.rotation.y += (targetY - stack.rotation.y) * 0.08;
-        stack.rotation.x += (targetX - stack.rotation.x) * 0.08;
+        stack.rotation.y += (targetY - stack.rotation.y) * damp(0.08, delta);
+        stack.rotation.x += (targetX - stack.rotation.x) * damp(0.08, delta);
         dustUniforms.uTime.value = time;
       },
       resize(width, height, dpr) {

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { NUM_LEDS } from '../lib/led/maths.js';
 import { sharedPlayer } from '../lib/led/player.js';
+import { damp } from '../lib/motion.js';
 
 // Oscar's 20-LED strip on a gentle curve, lit frame by frame by the port of his boot.py (src/lib/led/). Each LED is
 // an instanced sphere in the colour boot.py computes, with a soft halo; the stage's bloom (high and mid tiers)
@@ -145,8 +146,8 @@ export default {
         const e = a * a * (3 - 2 * a);
         const turn = -0.5 * (1 - e) + pointer.x * 0.2;
         const tilt = 0.08 + 0.35 * (1 - e) + pointer.y * 0.1;
-        strip.rotation.y += (turn - strip.rotation.y) * 0.06;
-        strip.rotation.x += (tilt - strip.rotation.x) * 0.06;
+        strip.rotation.y += (turn - strip.rotation.y) * damp(0.06, delta);
+        strip.rotation.x += (tilt - strip.rotation.x) * damp(0.06, delta);
       },
       resize(width, height, dpr) {
         camera.aspect = width / height;
