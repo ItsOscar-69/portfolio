@@ -5,7 +5,7 @@ const TINTS = { case: '#d8d3ca', pi5: '#2f6a3c', 'hat-hardware': '#c8b16a', 'ai-
 const HIGHLIGHT = '#39ff88';
 
 // The content panel's 3D viewer (spec §4.3): the Pi build, normally shaded, that you turn by dragging, with a list
-// of its 7 parts. Hovering or focusing a part in the list highlights it.
+// of its 7 parts. Hovering or focusing a part highlights it; clicking or tapping pins it.
 // - Each viewer has its own small renderer, made only when its figure first comes near the screen.
 // - It never zooms on the wheel, and vertical swipes scroll the page, so it can't trap scrolling.
 // - Without WebGL, or if the model fails to load, the poster and the list stay.
@@ -29,16 +29,25 @@ export function createModelViewers({ doc, reduced = false }) {
       buttons.forEach((b, key) => b.classList.toggle('is-hot', key === id));
       apply(id);
     };
+    let pinned = null;
     for (const part of PARTS) {
       const item = doc.createElement('li');
       const b = doc.createElement('button');
       b.type = 'button';
       b.textContent = part.label;
       b.dataset.part = part.id;
+      b.setAttribute('aria-pressed', 'false');
+      // Hovering or focusing shows a part for a moment. A click or tap pins it until it is pressed again, which is
+      // how touch screens use the list: their pointerleave fires as soon as the finger lifts.
       b.addEventListener('pointerenter', () => highlight(part.id));
-      b.addEventListener('pointerleave', () => highlight(null));
+      b.addEventListener('pointerleave', () => highlight(pinned));
       b.addEventListener('focus', () => highlight(part.id));
-      b.addEventListener('blur', () => highlight(null));
+      b.addEventListener('blur', () => highlight(pinned));
+      b.addEventListener('click', () => {
+        pinned = pinned === part.id ? null : part.id;
+        buttons.forEach((btn, key) => btn.setAttribute('aria-pressed', String(key === pinned)));
+        highlight(pinned || part.id);
+      });
       item.append(b);
       list.append(item);
       buttons.set(part.id, b);
@@ -148,7 +157,9 @@ async function mount({ figure, stage, doc, win, reduced }) {
 
   // Draws only when something changed, and only while the figure is on screen.
   let raf = 0;
+  let lost = false;
   const loop = () => {
+    if (lost) return;
     raf = win.requestAnimationFrame(loop);
     const moved = controls.update();
     if (!moved && !dirty) return;
@@ -156,11 +167,17 @@ async function mount({ figure, stage, doc, win, reduced }) {
     dirty = false;
     figure.classList.add('is-ready');
   };
-  const run = () => { if (!raf) raf = win.requestAnimationFrame(loop); };
+  const run = () => { if (!raf && !lost) raf = win.requestAnimationFrame(loop); };
   const pause = () => {
     if (raf) win.cancelAnimationFrame(raf);
     raf = 0;
   };
+  canvas.addEventListener('webglcontextlost', () => {
+    lost = true;
+    pause();
+    figure.classList.remove('is-ready');
+    console.warn('[model viewer] WebGL context lost; showing the poster.');
+  });
   if ('IntersectionObserver' in win) new win.IntersectionObserver(([entry]) => (entry.isIntersecting ? run() : pause())).observe(figure);
   else run();
 

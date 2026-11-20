@@ -89,3 +89,34 @@ test('if the model fails to load, the poster and the part list stay', async ({ p
   await expect.poll(() => poster(figure).evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
   await expect(figure.getByRole('list', { name: 'Parts of the build' }).getByRole('button')).toHaveCount(7);
 });
+
+test.describe('on a touch screen', () => {
+  test.use({ hasTouch: true });
+
+  test('a tap pins a part, and a second tap unpins it', async ({ page }) => {
+    await page.goto('./');
+    const figure = await viewer(page);
+    const mount = figure.getByRole('button', { name: 'Camera mount (printed)' });
+    await expect(mount).toHaveAttribute('aria-pressed', 'false');
+    await mount.tap();
+    await expect(mount).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => highlighted(figure)).toBe('mount');
+    await page.touchscreen.tap(5, 300); // tap somewhere else on the page
+    await expect.poll(() => highlighted(figure)).toBe('mount');
+    await mount.tap();
+    await expect(mount).toHaveAttribute('aria-pressed', 'false');
+    await page.touchscreen.tap(5, 300);
+    await expect.poll(() => highlighted(figure)).toBeNull();
+  });
+});
+
+test('if the viewer loses its WebGL context, the poster comes back', async ({ page }) => {
+  const warned = page.waitForEvent('console', { predicate: (m) => m.text().includes('[model viewer] WebGL context lost'), timeout: 30_000 });
+  await page.goto('./');
+  const figure = await viewer(page);
+  await expect(figure).toHaveClass(/is-ready/, { timeout: 30_000 });
+  await figure.locator('.model__canvas').evaluate((c) => (c.getContext('webgl2') || c.getContext('webgl')).getExtension('WEBGL_lose_context').loseContext());
+  await warned;
+  await expect(figure).not.toHaveClass(/is-ready/);
+  await expect.poll(() => figure.locator('.model__stage img').evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+});
