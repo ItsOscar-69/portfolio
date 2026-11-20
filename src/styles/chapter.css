@@ -61,3 +61,13 @@ html.webgl .scene.is-live .mirror__ascii { display: none; }
 .model__parts button { padding: 7px 12px; border: 1px solid var(--faint); border-radius: 999px; background: transparent; color: var(--paper); font: 500 12px/1 var(--font-mono); cursor: pointer; }
 .model__parts button:hover, .model__parts button.is-hot { border-color: #39ff88; color: #39ff88; }
 .media--model { width: 100%; max-width: calc(80vh * 4 / 3); justify-self: center; }
+/* Phones turned sideways: titles sized by the screen's height as well as its width. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .chapter__meta, .badge { margin-bottom: 8px; }
+  .chapter__title { font-size: min(clamp(44px, 9vw, 150px), 16vh); }
+  .chapter__title.font-michroma { font-size: min(clamp(26px, 6.4vw, 104px), 11vh); }
+  .chapter__title.font-big-shoulders { font-size: min(clamp(64px, 13vw, 210px), 21vh); }
+  .chapter__hook { margin-top: 8px; font-size: 15px; }
+  .lightshow, .mirror { margin-top: 10px; }
+  .lightshow { max-width: none; }
+}
