@@ -30,7 +30,7 @@ try {
 }
 
 await run(ffmpegPath, ['-y', '-ss', '0.6', '-i', recording, '-an', '-map_metadata', '-1', '-vf', 'scale=1280:-2,fps=30',
-  '-c:v', 'libx264', '-preset', 'slow', '-crf', '28', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', `${OUT}/screen.mp4`]);
+  '-c:v', 'libx264', '-preset', 'slow', '-crf', '28', '-pix_fmt', 'yuv420p', '-bsf:v', 'filter_units=remove_types=6', '-fflags', '+bitexact', '-movflags', '+faststart', `${OUT}/screen.mp4`]);
 await run(ffmpegPath, ['-y', '-ss', '6', '-i', `${OUT}/screen.mp4`, '-frames:v', '1', 'raw/video/poster.png']);
 await sharp('raw/video/poster.png').resize({ width: 1280, withoutEnlargement: true }).webp({ quality: 82, effort: 5 }).toFile(`${OUT}/screen-poster.webp`);
 const { size } = await fs.stat(`${OUT}/screen.mp4`);

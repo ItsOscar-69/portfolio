@@ -18,6 +18,7 @@
     "poster:model": "vite build && node tools/model-poster.mjs",
     "to-webp": "node tools/to-webp.mjs",
     "check:media": "node tools/check-media.mjs",
+    "check:history": "node tools/check-history.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview --port 4173 --strictPort",
