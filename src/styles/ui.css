@@ -9,6 +9,6 @@
 .menu__link, .menu__soon { display: flex; gap: 12px; padding: 9px 12px; border-radius: 10px; text-decoration: none; font-size: 16px; font-weight: 400; }
 .menu__link:hover, .menu__link:focus-visible { background: rgba(9, 9, 9, 0.08); }
 .menu__link[aria-current='true'] { font-weight: 500; }
-.menu__soon { opacity: 0.45; }
+.menu__soon { opacity: 0.6; } /* 5.1:1 on the menu's paper background; 0.45 gave 3.1:1 */
 .menu .mono { padding-top: 3px; }
 .fps { position: fixed; left: 12px; bottom: 12px; z-index: 40; padding: 5px 8px; border-radius: 6px; background: rgba(0, 0, 0, 0.75); color: #39ff88; font: 500 12px/1 var(--font-mono); pointer-events: none; }

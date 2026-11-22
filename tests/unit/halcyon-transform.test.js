@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { swapFonts, lockForm, rewriteFontCss } from '../../tools/lib/halcyon-transform.mjs';
+import { swapFonts, lockForm, rewriteFontCss, labelRailMark } from '../../tools/lib/halcyon-transform.mjs';
 
 const head = `<head>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -42,4 +42,9 @@ it('keeps only woff2 sources and lists the files to copy', () => {
   expect(files).toEqual(['michroma-latin-400-normal.woff2']);
   expect(out).toContain("src: url(files/michroma-latin-400-normal.woff2) format('woff2');");
   expect(out).not.toContain('.woff)');
+});
+
+it('puts the rail mark\'s visible text at the start of its label', () => {
+  const html = '<a class="rail__mark" href="#sec-01" aria-label="Halcyon Somatics, back to top">H/S</a>';
+  expect(labelRailMark(html)).toContain('aria-label="H/S: Halcyon Somatics, back to top"');
 });

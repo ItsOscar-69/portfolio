@@ -24,3 +24,9 @@ export function rewriteFontCss(css, prefix) {
   if (!files.length) throw new Error('no woff2 files found in font CSS');
   return { css: out, files };
 }
+
+// The rail's "H/S" mark is labelled "Halcyon Somatics, back to top", which doesn't contain the text you see, so
+// someone using speech input can't say "click H/S" (WCAG 2.5.3). Put the visible text at the start of the label.
+export function labelRailMark(html) {
+  return html.replace('aria-label="Halcyon Somatics, back to top"', 'aria-label="H/S: Halcyon Somatics, back to top"');
+}

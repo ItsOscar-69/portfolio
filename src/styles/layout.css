@@ -33,3 +33,9 @@ html.webgl .scene.is-live .scene__poster { opacity: 0; }
 @media (orientation: landscape) and (max-height: 520px) {
   .scene__frame { padding-top: 60px; padding-bottom: 68px; }
 }
+
+/* On narrow screens the hero's count and links sit over the busiest part of the ring, so the scrim reaches higher. */
+@media (max-width: 700px) {
+  .hero .scene__frame { align-content: flex-end; }
+  .hero .scene__frame::before { background: linear-gradient(to top, rgba(9, 9, 9, 0.9), rgba(9, 9, 9, 0.85) 38%, rgba(9, 9, 9, 0) 65%); }
+}

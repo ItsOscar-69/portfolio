@@ -1,7 +1,7 @@
 // Builds public/halcyon/: the original page with self-hosted fonts and a form that can't submit anywhere.
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { swapFonts, lockForm, rewriteFontCss } from './lib/halcyon-transform.mjs';
+import { swapFonts, lockForm, rewriteFontCss, labelRailMark } from './lib/halcyon-transform.mjs';
 
 const SRC = 'raw/halcyon';
 const OUT = 'public/halcyon';
@@ -18,7 +18,7 @@ await fs.mkdir(path.join(OUT, 'assets'), { recursive: true });
 await fs.mkdir(path.join(OUT, 'fonts', 'files'), { recursive: true });
 
 const html = await fs.readFile(path.join(SRC, 'index.html'), 'utf8');
-await fs.writeFile(path.join(OUT, 'index.html'), lockForm(swapFonts(html)));
+await fs.writeFile(path.join(OUT, 'index.html'), labelRailMark(lockForm(swapFonts(html))));
 for (const file of ['styles.css', 'main.js', 'boot-gate.js', 'assets/body-wireframe.svg']) {
   await fs.copyFile(path.join(SRC, file), path.join(OUT, file));
 }
