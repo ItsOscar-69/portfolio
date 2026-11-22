@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import sharp from 'sharp';
 
 // Spec §8.3: text over posters and worlds meets WCAG AA. axe can't judge text over images, so this hides each intro
-// line, photographs what is behind it, and compares the text colour with the brightest 5% of that background:
+// line, photographs what is behind it, and blends the text's colour (with its alpha) over each pixel and judges the worst 5%:
 // 4.5:1, or 3:1 for large text (24 px, or 18.66 px bold).
 const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
 const lum = (r, g, b) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
@@ -34,12 +34,17 @@ async function lowContrast(page, viewport, live) {
       const clip = { x, y, width: Math.min(viewport.width, it.box.x + it.box.width) - x, height: Math.min(viewport.height, it.box.y + it.box.height) - y };
       if (clip.width < 2 || clip.height < 2) continue;
       const { data, info } = await sharp(await page.screenshot({ clip })).raw().toBuffer({ resolveWithObject: true });
-      const ls = [];
-      for (let p = 0; p < data.length; p += info.channels) ls.push(lum(data[p], data[p + 1], data[p + 2]));
-      ls.sort((a, b) => a - b);
-      const [r, g, b] = it.color.match(/\d+(\.\d+)?/g).map(Number);
+      const [r, g, b, a = 1] = it.color.match(/\d+(\.\d+)?/g).map(Number);
+      const rs = [];
+      for (let p = 0; p < data.length; p += info.channels) {
+        // Blend the text over this pixel in sRGB, the way a browser does, then compare it with the pixel.
+        const bg = [data[p], data[p + 1], data[p + 2]];
+        const t = [r, g, b].map((c, k) => a * c + (1 - a) * bg[k]);
+        rs.push(ratio(lum(...t), lum(...bg)));
+      }
+      rs.sort((x, y) => x - y);
       const need = it.size >= 24 || (it.size >= 18.66 && it.weight >= 700) ? 3 : 4.5;
-      const got = ratio(lum(r, g, b), ls[Math.floor(ls.length * 0.95)]);
+      const got = rs[Math.floor(rs.length * 0.05)];
       if (got < need) failures.push(`${id} ${it.name}: ${got.toFixed(2)} < ${need}`);
     }
     await hide.evaluate((node) => node.remove());
