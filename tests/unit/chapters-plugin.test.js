@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
-import { sliceLines, prepareProjects, checkProjects, publicIndexRewrite } from '../../plugins/chapters.js';
+import { sliceLines, prepareProjects, checkProjects, publicIndexRewrite, existsExactly } from '../../plugins/chapters.js';
 
 const webp = (file, width, height) => sharp({ create: { width, height, channels: 3, background: '#ffffff' } }).webp().toFile(file);
 const tmpPublic = async () => {
@@ -54,4 +54,15 @@ it('lets the dev server open folder pages from public/, like /halcyon/', async (
   expect(run('/halcyon/?x=1')).toBe('/halcyon/index.html?x=1');
   expect(run('/')).toBe('/');
   expect(run('/projects/')).toBe('/projects/');
+});
+
+it('treats a path with the wrong letter case as missing, as GitHub Pages would', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'exact-'));
+  fs.mkdirSync(path.join(root, 'projects', 'demo'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'projects', 'demo', 'cover.webp'), '');
+  expect(existsExactly(root, 'projects/demo/cover.webp')).toBe(true);
+  expect(existsExactly(root, '/projects/demo/cover.webp')).toBe(true);
+  expect(existsExactly(root, 'projects/demo/Cover.webp')).toBe(false);
+  expect(existsExactly(root, 'Projects/demo/cover.webp')).toBe(false);
+  expect(existsExactly(root, 'projects/demo/missing.webp')).toBe(false);
 });

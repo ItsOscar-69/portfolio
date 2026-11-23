@@ -48,8 +48,21 @@ export function publicIndexRewrite(base, publicDir) {
   };
 }
 
+// True only if rel exists under root with exactly this spelling. GitHub Pages is case-sensitive and Windows isn't,
+// so "Cover.webp" passes fs.existsSync here and 404s on the live site.
+export function existsExactly(root, rel) {
+  let dir = root;
+  for (const part of rel.split('/').filter(Boolean)) {
+    let names;
+    try { names = fs.readdirSync(dir); } catch { return false; }
+    if (!names.includes(part)) return false;
+    dir = path.join(dir, part);
+  }
+  return fs.existsSync(dir);
+}
+
 export function checkProjects(list, publicDir) {
-  const errors = validateProjects(list, { worldNames: WORLD_NAMES, fileExists: (rel) => fs.existsSync(path.join(publicDir, rel)) });
+  const errors = validateProjects(list, { worldNames: WORLD_NAMES, fileExists: (rel) => existsExactly(publicDir, rel) });
   if (errors.length) throw new Error(`Content check failed (src/content/projects.js):\n  - ${errors.join('\n  - ')}`);
 }
 
