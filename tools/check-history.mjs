@@ -11,14 +11,14 @@ let r;
 try {
   if (!fs.existsSync('privacy.local.json')) fail('privacy.local.json is missing; the history check needs its word list.');
   forbidden = JSON.parse(fs.readFileSync('privacy.local.json', 'utf8')).forbidden;
-  if (!Array.isArray(forbidden) || !forbidden.some((w) => typeof w === 'string' && w.trim())) {
-    fail('privacy.local.json needs a "forbidden" list with at least one word.');
+  if (!Array.isArray(forbidden) || !forbidden.length || forbidden.some((w) => typeof w !== 'string' || !w.trim())) {
+    fail('privacy.local.json needs a "forbidden" list of non-empty strings, with at least one word.');
   }
   r = await scanHistory('.', forbidden);
 } catch {
   fail('The history check failed; nothing was printed from the word list.');
 }
-const count = new Set(forbidden.filter((w) => typeof w === 'string' && w.trim()).map((w) => w.trim().toLowerCase())).size;
+const count = new Set(forbidden.map((w) => w.trim().toLowerCase())).size;
 console.log(`${r.commits} commits checked against ${count} private words.`);
 if (r.textHits.length) console.error(`A private word appears in ${r.textHits.length} file versions or path names:\n  ${r.textHits.slice(0, 20).join('\n  ')}`);
 if (r.messageHits) console.error(`${r.messageHits} private word(s) appear in commit messages, identities, branch or tag names, or tag notes.`);

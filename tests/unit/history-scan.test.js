@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import sharp from 'sharp';
-import { scanHistory } from '../../tools/lib/history-scan.mjs';
+import { scanHistory, parseBatch } from '../../tools/lib/history-scan.mjs';
 
 // A throwaway repo with its own identity, set through the environment (git config is never touched).
 const ENV = { ...process.env, GIT_AUTHOR_NAME: 'Test', GIT_AUTHOR_EMAIL: 'test@example.invalid', GIT_COMMITTER_NAME: 'Test', GIT_COMMITTER_EMAIL: 'test@example.invalid' };
@@ -115,4 +115,45 @@ it('finds a word in a file name and redacts it in the output', async () => {
 it('throws on a repository with no commits', async () => {
   const { dir } = repo();
   await expect(scanHistory(dir, ['plumtree'])).rejects.toThrow();
+});
+
+// Fix: the cat-file parse must fail closed on anything but a well-formed entry for each requested sha.
+const SHA_A = 'a'.repeat(40);
+const SHA_B = 'b'.repeat(40);
+const entry = (sha, body) => Buffer.concat([Buffer.from(`${sha} blob ${body.length}\n`), Buffer.from(body), Buffer.from('\n')]);
+
+it('parseBatch returns every blob of a well-formed buffer', () => {
+  const out = parseBatch(Buffer.concat([entry(SHA_A, 'one'), entry(SHA_B, 'twotwo')]), [SHA_A, SHA_B]);
+  expect(out.map((e) => [e.sha, e.type, e.body.toString()])).toEqual([[SHA_A, 'blob', 'one'], [SHA_B, 'blob', 'twotwo']]);
+});
+
+it('parseBatch throws on an ambiguous header', () => {
+  expect(() => parseBatch(Buffer.from(`${SHA_A} ambiguous\n`), [SHA_A])).toThrow();
+});
+
+it('parseBatch throws on a size that is not a number', () => {
+  expect(() => parseBatch(Buffer.from(`${SHA_A} blob 1x\nx\n`), [SHA_A])).toThrow();
+});
+
+it('parseBatch throws when the header sha is not the one requested', () => {
+  expect(() => parseBatch(entry(SHA_B, 'one'), [SHA_A])).toThrow();
+});
+
+it('parseBatch throws when fewer entries parse than were requested', () => {
+  expect(() => parseBatch(entry(SHA_A, 'one'), [SHA_A, SHA_B])).toThrow();
+});
+
+it('parseBatch throws when an entry runs past the buffer', () => {
+  expect(() => parseBatch(Buffer.from(`${SHA_A} blob 99\nshort\n`), [SHA_A])).toThrow();
+});
+
+it('rejects a word list with a non-string or empty entry, without echoing the words', async () => {
+  const { dir, commit } = repo();
+  fs.writeFileSync(path.join(dir, 'a.txt'), 'hello\n');
+  commit('first');
+  for (const list of [['ok', 3], ['ok', '']]) {
+    const err = await scanHistory(dir, list).catch((e) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).not.toContain('ok');
+  }
 });

@@ -10,7 +10,8 @@ const IMAGE = /\.(webp|png|jpe?g)$/i;
 
 export async function scanHistory(cwd, words) {
   if (!Array.isArray(words)) throw new Error('The word list must be an array.');
-  const lower = [...new Set(words.filter((w) => typeof w === 'string').map((w) => w.trim().toLowerCase()).filter(Boolean))];
+  if (words.some((w) => typeof w !== 'string' || !w.trim())) throw new Error('The word list must hold only non-empty strings.');
+  const lower = [...new Set(words.map((w) => w.trim().toLowerCase()))];
   if (!lower.length) throw new Error('The word list has no usable words.');
   // Byte forms to look for in a blob: UTF-8 (covers ASCII) and UTF-16, both viewed as latin1 so any blob can be searched.
   const forms = lower.flatMap((w) => [Buffer.from(w, 'utf8'), Buffer.from(w, 'utf16le')].map((b) => b.toString('latin1').toLowerCase()));
@@ -51,16 +52,8 @@ export async function scanHistory(cwd, words) {
     for (let i = 0; i < shas.length; i += 300) {
       const chunk = shas.slice(i, i + 300);
       const out = git(cwd, ['cat-file', '--batch'], { input: `${chunk.join('\n')}\n` });
-      let pos = 0;
-      while (pos < out.length) {
-        const eol = out.indexOf(0x0a, pos);
-        const [sha, type, size] = out.toString('latin1', pos, eol).split(' ');
-        if (type === 'missing') throw new Error('missing');
-        const start = eol + 1;
-        const end = start + Number(size);
-        pos = end + 1;
+      for (const { sha, type, body } of parseBatch(out, chunk)) {
         if (type !== 'blob') continue;
-        const body = out.subarray(start, end);
         const file = blobs.get(sha);
         const content = body.toString('latin1').toLowerCase();
         if (forms.some((f) => content.includes(f))) hits.add(`${commitFor(cwd, sha)}:${redact(file)}`);
@@ -75,6 +68,29 @@ export async function scanHistory(cwd, words) {
   } catch {
     throw new Error('The history scan failed; nothing from the word list was printed.');
   }
+}
+
+// Parses `git cat-file --batch` output for the shas asked for, in order. Fails closed: anything but one well-formed
+// "<sha> <type> <size>" entry per requested sha throws a fixed message, so no blob can be skipped unscanned.
+export function parseBatch(out, shas) {
+  const fail = () => { throw new Error('Unexpected git cat-file output.'); };
+  const entries = [];
+  let pos = 0;
+  while (pos < out.length) {
+    const eol = out.indexOf(0x0a, pos);
+    if (eol < 0) fail();
+    const parts = out.toString('latin1', pos, eol).split(' ');
+    if (parts.length !== 3 || !/^\d+$/.test(parts[2])) fail();
+    const [sha, type, size] = parts;
+    if (entries.length >= shas.length || sha !== shas[entries.length]) fail();
+    const start = eol + 1;
+    const end = start + Number(size);
+    if (end > out.length) fail();
+    entries.push({ sha, type, body: out.subarray(start, end) });
+    pos = end + 1;
+  }
+  if (entries.length !== shas.length) fail();
+  return entries;
 }
 
 // The commit that introduced a blob, so a hit reads "<commit>:<path>".
