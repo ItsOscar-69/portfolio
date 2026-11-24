@@ -36,16 +36,19 @@ test('the chips pick an effect, and the code panel follows without moving the pa
   await expect(show).toHaveClass(/is-live/, { timeout: 30_000 });
   await expect(show.locator('.lightshow .chip')).toHaveCount(6);
   await show.getByRole('button', { name: 'Fire' }).click();
+  await page.mouse.move(1, 1); // hovering the box counts as reading
   await page.evaluate(() => document.querySelector('#pico-light-show .media--code[data-live]').scrollIntoView({ block: 'center' }));
+  await page.waitForTimeout(300);
   const y = await page.evaluate(() => scrollY);
   await expect(show.getByRole('button', { name: 'Fire' })).toHaveAttribute('aria-pressed', 'true', { timeout: 5_000 });
   await expect(show.locator('.lightshow__name')).toHaveText('fire');
   const line = Number(await show.locator('.code-line.is-running').getAttribute('data-line'));
   expect(line).toBeGreaterThanOrEqual(195);
   expect(line).toBeLessThanOrEqual(220);
-  expect(Math.abs((await page.evaluate(() => scrollY)) - y)).toBeLessThan(2);
   // the running line sits inside the code box's visible area (the box glides there, so poll)
   await expect.poll(() => runningInView(page), { timeout: 5_000 }).toBe(true);
+  // following the show never scrolls the page
+  expect(Math.abs((await page.evaluate(() => scrollY)) - y)).toBeLessThan(2);
   // the 3D strip is showing, so the intro strip is hidden
   await expect(show.locator('.lightshow__strip--intro')).toBeHidden();
 });
@@ -58,6 +61,7 @@ test('the code box holds still while it slides in, then glides to the running li
   await scrollToId(page, 'pico-light-show');
   await expect(show).toHaveClass(/is-live/, { timeout: 30_000 });
   await show.getByRole('button', { name: 'Fire' }).click();
+  await page.mouse.move(1, 1);
   // only the top 40% of the box shows, at the bottom of the screen
   await pre.evaluate(async (el) => {
     const r = el.getBoundingClientRect();
@@ -66,14 +70,20 @@ test('the code box holds still while it slides in, then glides to the running li
   });
   const ratio = await pre.evaluate((el) => { const r = el.getBoundingClientRect(); return (innerHeight - r.top) / r.height; });
   expect(ratio).toBeLessThan(0.5);
-  const before = await pre.evaluate((el) => el.scrollTop);
+  // the running line is far down the file; put the box back at the top so the glide has to move it
+  await pre.evaluate((el) => { el.scrollTop = 0; });
+  await page.mouse.move(1, 1); // hovering the box counts as reading
+  expect(await runningInView(page)).toBe(false);
   const calls = await page.evaluate(() => window.__codeScrolls.length);
-  await page.waitForTimeout(3000);
-  expect(await pre.evaluate((el) => el.scrollTop)).toBe(before);
+  await page.waitForTimeout(3000); // the show keeps playing, and the running line keeps changing
+  expect(await pre.evaluate((el) => el.scrollTop)).toBe(0);
   expect(await page.evaluate(() => window.__codeScrolls.length)).toBe(calls);
   await pre.evaluate((el) => el.scrollIntoView({ block: 'center' }));
   await expect.poll(() => runningInView(page), { timeout: 3_000 }).toBe(true);
-  expect(await page.evaluate(() => window.__codeScrolls)).toContain('smooth');
+  expect(await pre.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  const after = await page.evaluate((n) => window.__codeScrolls.slice(n), calls);
+  expect(after.length).toBeGreaterThan(0);
+  expect(after).toContain('smooth');
 });
 
 test.describe('on a sideways phone', () => {
