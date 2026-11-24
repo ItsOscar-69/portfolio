@@ -41,7 +41,7 @@ export function renderMedia(m, project, base) {
     }
     case 'video': {
       const size = m.width && m.height ? ` width="${m.width}" height="${m.height}"` : '';
-      return `<figure class="media media--video"><video src="${url(m.src)}" poster="${url(m.poster)}"${size} controls muted loop playsinline preload="none" data-autoplay aria-label="${escapeHtml(m.alt)}"></video>${figcaption(m)}</figure>`;
+      return `<figure class="media media--video"><video src="${url(m.src)}" poster="${url(m.poster)}"${size} muted loop playsinline preload="none" data-autoplay aria-label="${escapeHtml(m.alt)}"></video>${figcaption(m)}</figure>`;
     }
     case 'model':
       return `<figure class="media media--model" data-model="${url(m.src)}"><img src="${url(m.poster)}" alt="${escapeHtml(m.alt)}" loading="lazy" decoding="async">${figcaption(m)}</figure>`;

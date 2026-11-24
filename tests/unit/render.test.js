@@ -103,7 +103,9 @@ describe('renderMedia', () => {
   it('renders video and model with their posters', () => {
     const video = renderMedia({ type: 'video', src: 'c.mp4', poster: 'c.webp', alt: 'A' }, p, '/');
     expect(video).toContain('poster="/projects/demo/c.webp"');
-    expect(video).toContain(' controls muted loop playsinline preload="none" data-autoplay');
+    expect(video).toContain('data-autoplay');
+    expect(video).toContain(' muted loop playsinline preload="none"');
+    expect(video).not.toContain('controls');
     expect(renderMedia({ type: 'model', src: 'm.glb', poster: 'm.webp', alt: 'A' }, p, '/')).toContain('data-model="/projects/demo/m.glb"');
   });
   it('reserves space for a video', () => {
