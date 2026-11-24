@@ -28,3 +28,23 @@ for (const width of [375, 1440]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
   });
 }
+
+test('the HALCYON write-up has no big link tile, and its live-page link is a pill button', async ({ page }) => {
+  await page.goto('./?posters');
+  const panel = page.locator('#halcyon-somatics .chapter__panel');
+  await expect(panel.locator('.media--link')).toHaveCount(0);
+  const link = panel.locator('.panel__links a', { hasText: 'Visit the live page' });
+  await expect(link).toHaveAttribute('href', '/halcyon/');
+  const style = await link.evaluate((a) => { const s = getComputedStyle(a); return { radius: parseFloat(s.borderTopLeftRadius), border: s.borderTopStyle, underline: s.textDecorationLine }; });
+  expect(style.radius).toBeGreaterThan(100);
+  expect(style.border).toBe('solid');
+  expect(style.underline).toBe('none');
+});
+
+test('card labels use the small spaced mono capitals of the intro top line', async ({ page }) => {
+  await page.goto('./?posters');
+  const label = await page.locator('.card h4').first().evaluate((h) => { const s = getComputedStyle(h); return { transform: s.textTransform, family: s.fontFamily, size: parseFloat(s.fontSize) }; });
+  expect(label.transform).toBe('uppercase');
+  expect(label.family).toMatch(/JetBrains Mono/);
+  expect(label.size).toBeLessThanOrEqual(12);
+});

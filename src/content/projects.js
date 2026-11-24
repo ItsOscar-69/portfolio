@@ -44,7 +44,6 @@ export const projects = [
       { type: 'image', src: 'shot-hero.webp', alt: 'The HALCYON SOMATICS homepage: a wireframe body with callouts beside the headline "Perfection, installed."', caption: 'The hero: a wireframe body, callouts and a headline that decrypts itself.' },
       { type: 'image', src: 'shot-seraph.webp', alt: 'The SERAPH-9 implant spec plate on the HALCYON SOMATICS page', caption: 'SERAPH-9, the flagship implant, with its spec plate.' },
       { type: 'image', src: 'shot-terms.webp', alt: 'The "Terms of installation" section of the HALCYON SOMATICS page', caption: 'The terms of installation nobody reads.' },
-      { type: 'link', src: '/halcyon/', caption: 'Open the live HALCYON page' },
     ],
     links: [{ label: 'Visit the live page', href: '/halcyon/' }],
   },

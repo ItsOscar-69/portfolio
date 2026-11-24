@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('the page loads with its title', async ({ page }) => {
   await page.goto('./');
-  await expect(page).toHaveTitle('Oscar — Built with Claude Code');
+  await expect(page).toHaveTitle('Portfolio');
 });
 
 test('?fps shows a frame-rate readout with the device tier, and is off by default', async ({ page }) => {
