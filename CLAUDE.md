@@ -19,7 +19,7 @@ Oscar's public portfolio of projects built with Claude Code. It goes live at htt
 | `npm test` | Unit tests (Vitest) |
 | `npm run test:e2e` | Browser tests (Playwright with Microsoft Edge; use `PW_CHANNEL=chromium` after `npx playwright install chromium` for Playwright's own browser) |
 | `npm run media` | Rebuilds the HALCYON live copy, covers, screenshots and WebP images from the raw sources, then the DEAD TIRED layers and the Pi model (`publish-model`), and finishes with the media check (needs `sources.local.json`) |
-| `npm run video:halcyon` | Re-records the HALCYON screen video (H.264 MP4 + WebP poster) from the live copy in `public/halcyon/`. The first time on a machine, run `npx playwright install ffmpeg` (Playwright's recorder needs its own ffmpeg build). |
+| `npm run video:halcyon` | Runs `vite build`, then records the HALCYON page's start-up sequence and the HALCYON world frame by frame, and joins them into `screen.mp4` (H.264, no metadata or audio) plus a WebP poster. The first time on a machine, run `npx playwright install ffmpeg` (Playwright's recorder needs its own ffmpeg build). |
 | `npm run layers:dead-tired` | Re-crops the DEAD TIRED layer PNGs from `raw/tee/layers/` into `public/projects/dead-tired/layers/` plus its `layers.json` manifest |
 | `npm run led:reference` | Runs the real Pico `boot.py` under Python 3 and rewrites `tests/fixtures/boot-reference.json`, which the LED-port tests compare against (only needed if `boot.py` changes) |
 | `npm run model:pi` | Compresses `raw/pi/baseline_assembly.glb` into `public/projects/ascii-mirror/pi-assembly.glb` (meshopt, quantised, all 7 named parts) |
