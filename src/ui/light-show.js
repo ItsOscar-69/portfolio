@@ -79,10 +79,12 @@ export function createLightShow({ doc, reduced = false }) {
   let readingUntil = 0;
   const reading = () => hovering || focused || win.performance.now() < readingUntil;
   if (pre) {
-    const touched = () => { readingUntil = win.performance.now() + 4000; };
-    pre.addEventListener('pointerenter', () => { hovering = true; });
+    // Reading starts: cancel any glide in flight, so it can't pull the box away from where the visitor puts it.
+    const stopGlide = () => pre.scrollTo({ top: pre.scrollTop, behavior: 'auto' });
+    const touched = () => { stopGlide(); readingUntil = win.performance.now() + 4000; };
+    pre.addEventListener('pointerenter', () => { stopGlide(); hovering = true; });
     pre.addEventListener('pointerleave', () => { hovering = false; });
-    pre.addEventListener('focusin', () => { focused = true; });
+    pre.addEventListener('focusin', () => { stopGlide(); focused = true; });
     pre.addEventListener('focusout', () => { focused = false; });
     ['wheel', 'touchmove', 'keydown'].forEach((type) => pre.addEventListener(type, touched, { passive: true }));
   }
@@ -99,7 +101,8 @@ export function createLightShow({ doc, reduced = false }) {
   };
 
   if (pre && 'IntersectionObserver' in win) {
-    new win.IntersectionObserver(([entry]) => {
+    new win.IntersectionObserver((entries) => {
+      const entry = entries[entries.length - 1];
       const was = boxInView;
       boxInView = isFullyInView(entry);
       if (boxInView && !was) reveal(lineEls.get(shownLine) || lineEls.get(byName[shownEffect].lines[0]), false);

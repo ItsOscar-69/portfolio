@@ -121,6 +121,24 @@ test('the code box stays where the visitor scrolled it', async ({ page }) => {
   expect(await pre.evaluate((el) => el.scrollTop)).toBe(top);
 });
 
+test('scrolling the box mid-glide wins over the glide', async ({ page }) => {
+  await page.goto('./');
+  const show = page.locator('#pico-light-show');
+  await scrollToId(page, 'pico-light-show');
+  await expect(show).toHaveClass(/is-live/, { timeout: 30_000 });
+  await show.getByRole('button', { name: 'Twin comets' }).click();
+  await page.evaluate(() => document.querySelector('#pico-light-show .media--code[data-live]').scrollIntoView({ block: 'center' }));
+  const pre = show.locator('.media--code[data-live] pre');
+  // a glide is definitely in flight: the box has started moving but has not reached the running line
+  await expect.poll(() => pre.evaluate((el) => el.scrollTop), { timeout: 5_000 }).toBeGreaterThan(0);
+  const box = await pre.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, -2000);
+  await expect.poll(() => pre.evaluate((el) => el.scrollTop), { timeout: 3_000 }).toBe(0);
+  await page.waitForTimeout(2000);
+  expect(await pre.evaluate((el) => el.scrollTop)).toBe(0);
+});
+
 test('pause stops the show and play starts it again', async ({ page }) => {
   await page.goto('./');
   await scrollToId(page, 'pico-light-show');
