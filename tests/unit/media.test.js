@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { autoplayVideos } from '../../src/ui/media.js';
+import { IN_VIEW_THRESHOLDS } from '../../src/lib/in-view.js';
 
 function fakeVideo() {
   const handlers = {};
@@ -18,6 +19,7 @@ function fakeVideo() {
 
 function setup({ videos = [fakeVideo()], hidden = false, withObserver = true } = {}) {
   let callback;
+  let options;
   const doc = {
     hidden,
     querySelectorAll: () => videos,
@@ -25,10 +27,12 @@ function setup({ videos = [fakeVideo()], hidden = false, withObserver = true } =
       const handlers = {};
       return { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, append() {}, addEventListener(type, fn) { handlers[type] = fn; }, click() { handlers.click(); } };
     },
-    defaultView: withObserver ? { IntersectionObserver: class { constructor(cb) { callback = cb; } observe() {} } } : {},
+    defaultView: withObserver ? { IntersectionObserver: class { constructor(cb, opts) { callback = cb; options = opts; } observe() {} } } : {},
   };
+  const raw = (entries) => callback([entries]);
   const see = (video, inView, ratio = inView ? 1 : 0) => callback([{ target: video, intersectionRatio: ratio, intersectionRect: { height: 0 }, rootBounds: { height: 900 } }]);
-  return { doc, videos, see };
+  see.raw = raw;
+  return { doc, videos, see, observerOptions: () => options };
 }
 
 describe('autoplayVideos', () => {
@@ -102,5 +106,16 @@ describe('autoplayVideos', () => {
     see(v, false, 0);
     see(v, true);
     expect(v.currentTime).toBe(0);
+  });
+  it('plays a video taller than the screen once it fills 90% of the screen height', () => {
+    const { doc, videos: [v], callback } = (() => { const x = setup(); return { ...x, callback: (e) => x.see.raw(e) }; })();
+    autoplayVideos(doc);
+    callback({ target: v, intersectionRatio: 0.85, intersectionRect: { height: 357 }, rootBounds: { height: 375 } });
+    expect(v.paused).toBe(false);
+  });
+  it('observes in fine steps, so the tall-video check runs often enough', () => {
+    const { doc, observerOptions } = setup();
+    autoplayVideos(doc);
+    expect(observerOptions().threshold).toEqual(IN_VIEW_THRESHOLDS);
   });
 });

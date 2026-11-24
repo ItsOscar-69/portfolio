@@ -6,3 +6,7 @@ export function isFullyInView(entry, minFill = 0.9) {
   const viewport = entry.rootBounds.height;
   return viewport > 0 && entry.intersectionRect.height >= minFill * viewport;
 }
+
+// Every 5%: an IntersectionObserver only reports when a threshold is crossed, and a tall element's "fills 90% of the
+// screen" moment can fall between coarse steps.
+export const IN_VIEW_THRESHOLDS = Array.from({ length: 21 }, (_, i) => i / 20);

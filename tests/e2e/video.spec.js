@@ -43,8 +43,11 @@ test('scrolling away and back starts it again from the beginning', async ({ page
   await expect.poll(() => video.evaluate((v) => !v.paused && v.currentTime > 1.5), { timeout: 30_000 }).toBe(true);
   await page.evaluate(() => document.querySelector('#dead-tired').scrollIntoView());
   await expect.poll(() => video.evaluate((v) => v.paused), { timeout: 10_000 }).toBe(true);
+  // Record where playback resumes: a loop wrap by itself would also give a small currentTime later.
+  await video.evaluate((v) => v.addEventListener('playing', () => { window.__resumedAt = v.currentTime; }, { once: true }));
   await center(video);
-  await expect.poll(() => video.evaluate((v) => !v.paused && v.currentTime < 1), { timeout: 20_000 }).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.__resumedAt), { timeout: 20_000 }).toBeDefined();
+  expect(await page.evaluate(() => window.__resumedAt)).toBeLessThan(0.5);
 });
 
 test('a video the visitor paused stays paused when they scroll back', async ({ page }) => {
@@ -104,4 +107,23 @@ test('the ASCII demo recording has the same player', async ({ page }) => {
   await center(video);
   await expect.poll(() => video.evaluate((v) => !v.paused && v.currentTime > 0), { timeout: 20_000 }).toBe(true);
   expect(await video.evaluate((v) => [v.videoWidth, v.videoHeight])).toEqual([1280, 720]);
+});
+
+test.describe('on a sideways phone', () => {
+  test.use({ viewport: { width: 812, height: 375 } });
+  test('the ASCII demo, taller than the screen, plays once it fills it', async ({ page }) => {
+    await page.goto('./');
+    const video = page.locator('#ascii-mirror video');
+    // Scroll in 1px steps, like a visitor would: the observer only reports when a threshold is crossed, so jumping
+    // straight to the end would hide the problem.
+    await video.evaluate(async (v) => {
+      const frame = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+      const r = v.getBoundingClientRect();
+      const to = window.scrollY + r.top - (innerHeight - r.height) / 2; // centered
+      window.scrollTo(0, to - 120);
+      await frame(); await frame();
+      for (let y = to - 120; y <= to; y += 1) { window.scrollTo(0, y); await frame(); }
+    });
+    await expect.poll(() => isPlaying(video), { timeout: 20_000 }).toBe(true);
+  });
 });

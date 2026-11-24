@@ -1,4 +1,4 @@
-import { isFullyInView } from '../lib/in-view.js';
+import { isFullyInView, IN_VIEW_THRESHOLDS } from '../lib/in-view.js';
 
 // Muted, looping videos marked data-autoplay get a small Pause/Play pill instead of the browser's player.
 // They start only once fully on screen, from the beginning if they had left the screen, and pause when mostly
@@ -62,7 +62,7 @@ export function autoplayVideos(doc, { reduced = false } = {}) {
         video.pause();
       }
     }
-  }, { threshold: [0, 0.25, 0.5, 0.75, 0.9, 1] });
+  }, { threshold: IN_VIEW_THRESHOLDS });
   videos.forEach((video) => observer.observe(video));
   return observer;
 }
