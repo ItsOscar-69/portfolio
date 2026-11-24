@@ -4,29 +4,92 @@ const scrollToId = (page, id) => page.evaluate((el) => document.getElementById(e
 const dots = (page) => page.locator('#pico-light-show .lightshow__now .lightshow__strip i').evaluateAll((els) => els.map((el) => el.style.backgroundColor).join('|'));
 const introDots = (page) => page.locator('#pico-light-show .lightshow__strip--intro i').evaluateAll((els) => els.map((el) => el.style.backgroundColor).join('|'));
 
+// Records every scrollTo() the code box gets, with the behavior it asked for.
+const recordCodeScrolls = (page) => page.addInitScript(() => {
+  window.__codeScrolls = [];
+  const original = Element.prototype.scrollTo;
+  Element.prototype.scrollTo = function (...args) {
+    if (this.matches && this.matches('.media--code pre')) window.__codeScrolls.push(args[0] && args[0].behavior);
+    return original.apply(this, args);
+  };
+});
+const runningInView = (page) => page.evaluate(() => {
+  const pre = document.querySelector('#pico-light-show .media--code pre');
+  const el = pre.querySelector('.code-line.is-running');
+  return !!el && el.offsetTop >= pre.scrollTop - 1 && el.offsetTop + el.offsetHeight <= pre.scrollTop + pre.clientHeight + 1;
+});
+// Scrolls the page in 1px steps, so the visibility observer sees every ratio on the way.
+const stepScroll = (page, selector, targetTop) => page.evaluate(async ([sel, wanted]) => {
+  const frame = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+  const r = document.querySelector(sel).getBoundingClientRect();
+  const to = window.scrollY + r.top - wanted; // page scroll that puts the box's top at `wanted`
+  const from = Math.max(0, to - 400);
+  window.scrollTo(0, from);
+  await frame(); await frame();
+  for (let y = from; y <= to; y += 1) { window.scrollTo(0, y); await frame(); }
+}, [selector, targetTop]);
+
 test('the chips pick an effect, and the code panel follows without moving the page', async ({ page }) => {
   await page.goto('./');
   await scrollToId(page, 'pico-light-show');
   const show = page.locator('#pico-light-show');
   await expect(show).toHaveClass(/is-live/, { timeout: 30_000 });
   await expect(show.locator('.lightshow .chip')).toHaveCount(6);
-  const y = await page.evaluate(() => scrollY);
   await show.getByRole('button', { name: 'Fire' }).click();
+  await page.evaluate(() => document.querySelector('#pico-light-show .media--code[data-live]').scrollIntoView({ block: 'center' }));
+  const y = await page.evaluate(() => scrollY);
   await expect(show.getByRole('button', { name: 'Fire' })).toHaveAttribute('aria-pressed', 'true', { timeout: 5_000 });
   await expect(show.locator('.lightshow__name')).toHaveText('fire');
   const line = Number(await show.locator('.code-line.is-running').getAttribute('data-line'));
   expect(line).toBeGreaterThanOrEqual(195);
   expect(line).toBeLessThanOrEqual(220);
   expect(Math.abs((await page.evaluate(() => scrollY)) - y)).toBeLessThan(2);
-  // the running line sits inside the code box's visible area
-  const inBox = await page.evaluate(() => {
-    const pre = document.querySelector('#pico-light-show .media--code pre').getBoundingClientRect();
-    const el = document.querySelector('#pico-light-show .code-line.is-running').getBoundingClientRect();
-    return el.top >= pre.top - 1 && el.bottom <= pre.bottom + 1;
-  });
-  expect(inBox).toBe(true);
+  // the running line sits inside the code box's visible area (the box glides there, so poll)
+  await expect.poll(() => runningInView(page), { timeout: 5_000 }).toBe(true);
   // the 3D strip is showing, so the intro strip is hidden
   await expect(show.locator('.lightshow__strip--intro')).toBeHidden();
+});
+
+test('the code box holds still while it slides in, then glides to the running line once fully on screen', async ({ page }) => {
+  await recordCodeScrolls(page);
+  await page.goto('./');
+  const show = page.locator('#pico-light-show');
+  const pre = show.locator('.media--code[data-live] pre');
+  await scrollToId(page, 'pico-light-show');
+  await expect(show).toHaveClass(/is-live/, { timeout: 30_000 });
+  await show.getByRole('button', { name: 'Fire' }).click();
+  // only the top 40% of the box shows, at the bottom of the screen
+  await pre.evaluate(async (el) => {
+    const r = el.getBoundingClientRect();
+    window.scrollTo(0, window.scrollY + r.top - (innerHeight - 0.4 * r.height));
+    await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+  });
+  const ratio = await pre.evaluate((el) => { const r = el.getBoundingClientRect(); return (innerHeight - r.top) / r.height; });
+  expect(ratio).toBeLessThan(0.5);
+  const before = await pre.evaluate((el) => el.scrollTop);
+  const calls = await page.evaluate(() => window.__codeScrolls.length);
+  await page.waitForTimeout(3000);
+  expect(await pre.evaluate((el) => el.scrollTop)).toBe(before);
+  expect(await page.evaluate(() => window.__codeScrolls.length)).toBe(calls);
+  await pre.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+  await expect.poll(() => runningInView(page), { timeout: 3_000 }).toBe(true);
+  expect(await page.evaluate(() => window.__codeScrolls)).toContain('smooth');
+});
+
+test.describe('on a sideways phone', () => {
+  test.use({ viewport: { width: 812, height: 375 } });
+  test('the box still follows once it fills the screen', async ({ page }) => {
+    await page.goto('./');
+    const show = page.locator('#pico-light-show');
+    await scrollToId(page, 'pico-light-show');
+    await expect(show).toHaveClass(/is-live/, { timeout: 30_000 });
+    await show.getByRole('button', { name: 'Fire' }).click();
+    await page.mouse.move(1, 1); // keep the pointer off the box, or it counts as reading
+    await page.evaluate(() => window.scrollTo(0, 0));
+    // scroll the box up in 1px steps until its top reaches the top of the screen
+    await stepScroll(page, '#pico-light-show .media--code[data-live] pre', 0);
+    await expect.poll(() => runningInView(page), { timeout: 5_000 }).toBe(true);
+  });
 });
 
 test('the code box stays where the visitor scrolled it', async ({ page }) => {
@@ -82,6 +145,22 @@ test.describe('with reduced motion', () => {
     await expect.poll(() => dots(page), { timeout: 5_000 }).not.toBe(before);
     await expect.poll(() => introDots(page), { timeout: 5_000 }).not.toBe(introBefore);
     await expect(show.locator('.code-line.is-running')).toHaveCount(1);
+  });
+
+  test('the code box jumps to the running line without a glide', async ({ page }) => {
+    await recordCodeScrolls(page);
+    await page.goto('./');
+    const show = page.locator('#pico-light-show');
+    await scrollToId(page, 'pico-light-show');
+    await show.getByRole('button', { name: 'Play' }).click();
+    await show.getByRole('button', { name: 'Fire' }).click();
+    await page.mouse.move(1, 1);
+    await page.evaluate(() => document.querySelector('#pico-light-show .media--code[data-live]').scrollIntoView({ block: 'center' }));
+    await expect.poll(() => runningInView(page), { timeout: 1_000 }).toBe(true);
+    const calls = await page.evaluate(() => window.__codeScrolls);
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls[calls.length - 1]).toBe('auto');
+    expect(calls).not.toContain('smooth');
   });
 });
 

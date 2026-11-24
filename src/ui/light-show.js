@@ -2,6 +2,7 @@ import { EFFECTS, POWER_UP } from '../lib/led/effects.js';
 import { NUM_LEDS } from '../lib/led/maths.js';
 import { sharedPlayer } from '../lib/led/player.js';
 import { createHighlighter } from '../lib/led/highlight.js';
+import { isFullyInView, IN_VIEW_THRESHOLDS } from '../lib/in-view.js';
 
 const byName = Object.fromEntries([POWER_UP, ...EFFECTS].map((e) => [e.name, e]));
 const channel = (v) => Math.max(0, Math.min(255, v));
@@ -71,7 +72,8 @@ export function createLightShow({ doc, reduced = false }) {
 
   // Auto-follow is suspended while the visitor reads the box: pointer over it, focus inside it, or 4 s after they
   // scroll it (wheel, touch or keys; not the scroll event, which our own scrollTop writes fire too). A chip click
-  // resumes following at once.
+  // resumes following at once. The box also holds still while it slides into view: it follows the show only once it's
+  // fully on screen (or fills 90% of a short screen), then glides to the running line.
   let hovering = false;
   let focused = false;
   let readingUntil = 0;
@@ -84,14 +86,27 @@ export function createLightShow({ doc, reduced = false }) {
     pre.addEventListener('focusout', () => { focused = false; });
     ['wheel', 'touchmove', 'keydown'].forEach((type) => pre.addEventListener(type, touched, { passive: true }));
   }
+  let boxInView = false;
   const resumeFollowing = () => { hovering = false; focused = false; readingUntil = 0; };
 
   // Scrolls the code box itself, never the page.
   const reveal = (el, atTop) => {
-    if (!pre || !el || reading()) return;
+    if (!pre || !el || !boxInView || reading()) return;
     const outside = el.offsetTop < pre.scrollTop || el.offsetTop + el.offsetHeight > pre.scrollTop + pre.clientHeight;
-    if (atTop || outside) pre.scrollTop = Math.max(0, el.offsetTop - (atTop ? 8 : pre.clientHeight / 3));
+    if (atTop || outside) {
+      pre.scrollTo({ top: Math.max(0, el.offsetTop - (atTop ? 8 : pre.clientHeight / 3)), behavior: reduced ? 'auto' : 'smooth' });
+    }
   };
+
+  if (pre && 'IntersectionObserver' in win) {
+    new win.IntersectionObserver(([entry]) => {
+      const was = boxInView;
+      boxInView = isFullyInView(entry);
+      if (boxInView && !was) reveal(lineEls.get(shownLine) || lineEls.get(byName[shownEffect].lines[0]), false);
+    }, { threshold: IN_VIEW_THRESHOLDS }).observe(pre);
+  } else {
+    boxInView = true;
+  }
 
   const pick = createHighlighter();
   let shownPlaying = null;
