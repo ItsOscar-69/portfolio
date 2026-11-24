@@ -10,13 +10,49 @@
   let seed = 3;
   const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const clamp = (v) => Math.max(0, Math.min(1, v));
-  // A head-and-shoulders silhouette lit from the left, in square coordinates (0..1).
+  // A person mid-stride lit from the left, in square coordinates (0..1): a union of rounded shapes.
+  const segDist = (u, v, a, b) => {
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const t = clamp(((u - a[0]) * dx + (v - a[1]) * dy) / (dx * dx + dy * dy || 1));
+    return Math.hypot(u - a[0] - t * dx, v - a[1] - t * dy);
+  };
+  // Signed distance to a capsule (negative inside); radius tapers from r0 to r1.
+  const capsule = (u, v, a, b, r0, r1) => {
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const t = clamp(((u - a[0]) * dx + (v - a[1]) * dy) / (dx * dx + dy * dy || 1));
+    return Math.hypot(u - a[0] - t * dx, v - a[1] - t * dy) - (r0 + (r1 - r0) * t);
+  };
+  // Signed distance to a convex quad given clockwise or anticlockwise.
+  const quad = (u, v, p) => {
+    let d = Infinity, sign = null, inside = true;
+    for (let i = 0; i < p.length; i++) {
+      const a = p[i], b = p[(i + 1) % p.length];
+      d = Math.min(d, segDist(u, v, a, b));
+      const c = (b[0] - a[0]) * (v - a[1]) - (b[1] - a[1]) * (u - a[0]);
+      if (sign === null) sign = c >= 0; else if ((c >= 0) !== sign) inside = false;
+    }
+    return inside ? -d : d;
+  };
+  const TORSO = [[0.43, 0.24], [0.57, 0.24], [0.54, 0.50], [0.46, 0.50]];
+  const limb = (u, v, pts, r0, r1) => Math.min(
+    capsule(u, v, pts[0], pts[1], r0, (r0 + r1) / 2),
+    capsule(u, v, pts[1], pts[2], (r0 + r1) / 2, r1));
   function figure(u, v) {
-    const head = 1 - Math.hypot((u - 0.5) / 0.16, (v - 0.30) / 0.19);
-    const neck = Math.abs(u - 0.5) < 0.09 && v > 0.44 && v < 0.56 ? 0.6 : 0;
-    const body = 1 - Math.hypot((u - 0.5) / 0.47, (v - 0.98) / 0.48); // shoulders start near v = 0.50
-    const light = 0.55 + 0.45 * clamp(1 - (u - 0.34) / 0.36);         // lit from the left
-    return clamp(Math.max(head * 1.4, neck, body * 1.6) * light);
+    const near = Math.min(
+      Math.hypot(u - 0.50, v - 0.13) - 0.055,
+      capsule(u, v, [0.50, 0.18], [0.50, 0.22], 0.022, 0.022),
+      quad(u, v, TORSO) - 0.02,
+      limb(u, v, [[0.58, 0.25], [0.63, 0.35], [0.65, 0.44]], 0.022, 0.018),
+      limb(u, v, [[0.53, 0.50], [0.56, 0.68], [0.58, 0.86]], 0.032, 0.026),
+      capsule(u, v, [0.58, 0.86], [0.63, 0.87], 0.026, 0.022));
+    const far = Math.min(
+      limb(u, v, [[0.42, 0.25], [0.38, 0.36], [0.40, 0.46]], 0.022, 0.018),
+      limb(u, v, [[0.47, 0.50], [0.44, 0.69], [0.40, 0.86]], 0.032, 0.026),
+      capsule(u, v, [0.40, 0.86], [0.37, 0.88], 0.026, 0.022));
+    const light = 0.55 + 0.45 * clamp(1 - (u - 0.40) / 0.25);
+    const bn = near < 0 ? clamp(0.35 + -near * 18) : 0;
+    const bf = far < 0 ? clamp(0.35 + -far * 18) * 0.75 : 0;
+    return clamp(Math.max(bn, bf) * light);
   }
   const cell = 16, cw = cell * 0.62;
   g.fillStyle = '#020604';

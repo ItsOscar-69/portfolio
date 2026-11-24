@@ -67,7 +67,7 @@ export const projects = [
     media: [
       { type: 'model', src: 'pi-assembly.glb', poster: 'model-poster.webp', alt: 'A 3D model of the Pi 5 build: the case, the Raspberry Pi 5, the AI HAT+ on its spacers, and Camera Module 3 in its printed mount', caption: 'The whole build in 3D. Drag to turn it, and point at a part in the list to find it.' },
       { type: 'video', src: 'demo.mp4', poster: 'demo-poster.webp', alt: 'A screen recording of the Windows demo: a figure drawn in neon ASCII characters walks along a rainy cyberpunk street at night', caption: 'The Windows demo Claude Code wrote: a figure that follows the mouse, drawn as neon ASCII over a cyberpunk city.' },
-      { type: 'image', src: 'cover.webp', alt: 'A figure drawn in green ASCII characters on a black background', caption: 'The look: brightness becomes characters, from dots up to @ signs.' },
+      { type: 'image', src: 'cover.webp', alt: 'A person mid-stride, drawn in green ASCII characters on a black background', caption: 'The look: brightness becomes characters, from dots up to @ signs.' },
     ],
   },
   {
