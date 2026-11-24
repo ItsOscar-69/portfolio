@@ -30,6 +30,9 @@ test('it waits until the video is fully on screen, then plays from the start', a
   await page.goto('./');
   const video = page.locator(VIDEO);
   await showFraction(page, VIDEO, 0.6);
+  const visible = await video.evaluate((v) => { const r = v.getBoundingClientRect(); return (Math.min(r.bottom, innerHeight) - Math.max(r.top, 0)) / r.height; });
+  expect(visible).toBeGreaterThan(0.5);
+  expect(visible).toBeLessThan(0.7);
   await page.waitForTimeout(1500);
   expect(await video.evaluate((v) => [v.paused, v.currentTime])).toEqual([true, 0]);
   await center(video);
