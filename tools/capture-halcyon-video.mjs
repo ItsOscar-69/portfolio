@@ -1,5 +1,5 @@
 // Remakes the HALCYON chapter's video (npm run video:halcyon builds the site first).
-//   Part 1: the live HALCYON page's start-up (boot sequence), recorded in real time, with its black first second trimmed.
+//   Part 1: the live HALCYON page's start-up (boot sequence), recorded in real time, with the recorder's grey lead-in trimmed.
 //   Part 2: the chapter's 3D body from the built site (?tier=high), captured frame by frame under Playwright's fake clock
 //           so it is smooth even though software rendering is slow.
 // ffmpeg joins them with a 0.6 s crossfade and fades out to black at the end, then writes an H.264 MP4 without
@@ -96,7 +96,7 @@ for (let i = 0; i < names.length; i++) { // first frame that is full size (its b
 }
 const blackEnd = first / 20;
 const part1 = recLen - blackEnd;
-console.log(`recording ${recLen.toFixed(2)} s (wall clock to boot end + 0.4 s: ${cut.toFixed(2)} s), lead-in trimmed ${blackEnd.toFixed(2)} s, part 1 = ${part1.toFixed(2)} s`);
+console.log(`recording ${recLen.toFixed(2)} s (wall clock to boot end + 1.5 s: ${cut.toFixed(2)} s), lead-in trimmed ${blackEnd.toFixed(2)} s, part 1 = ${part1.toFixed(2)} s`);
 if (part1 < 1.5) throw new Error('part 1 is too short');
 const total = part1 + FRAME_COUNT / FPS - FADE;
 
