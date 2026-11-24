@@ -107,6 +107,15 @@ describe('autoplayVideos', () => {
     see(v, true);
     expect(v.currentTime).toBe(0);
   });
+  it('does not jump a video back to 0 when the visitor presses play while it was out of view', () => {
+    const { doc, videos: [v], see } = setup();
+    autoplayVideos(doc);
+    see(v, false, 0);
+    v.currentTime = 5;
+    v.dispatch('play'); // the visitor presses the pill; the fake's play() doesn't fire the event
+    see(v, true);
+    expect(v.currentTime).toBe(5);
+  });
   it('plays a video taller than the screen once it fills 90% of the screen height', () => {
     const { doc, videos: [v], callback } = (() => { const x = setup(); return { ...x, callback: (e) => x.see.raw(e) }; })();
     autoplayVideos(doc);

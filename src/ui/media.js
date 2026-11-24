@@ -39,6 +39,7 @@ export function autoplayVideos(doc, { reduced = false } = {}) {
     });
     video.addEventListener('play', () => {
       pausedByVisitor.delete(video);
+      leftView.delete(video); // playing now: a later full view must not restart it
       sync();
     });
   }
