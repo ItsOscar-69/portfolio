@@ -40,10 +40,10 @@ export const projects = [
       inside: 'Plain HTML, CSS and JavaScript. Michroma and IBM Plex Mono type, clip-path panels, a pointer-tilt effect, and Node tests for the helper functions.',
     },
     media: [
-      { type: 'video', src: 'screen.mp4', poster: 'screen-poster.webp', alt: 'A short film of the HALCYON SOMATICS page starting up, then the 3D body from the top of this chapter turning slowly', caption: "The page's start-up sequence, then the 3D body from the top of this chapter." },
-      { type: 'image', src: 'shot-hero.webp', alt: 'The HALCYON SOMATICS homepage: a wireframe body with callouts beside the headline "Perfection, installed."', caption: 'The hero: a wireframe body, callouts and a headline that decrypts itself.' },
-      { type: 'image', src: 'shot-seraph.webp', alt: 'The SERAPH-9 implant spec plate on the HALCYON SOMATICS page', caption: 'SERAPH-9, the flagship implant, with its spec plate.' },
-      { type: 'image', src: 'shot-terms.webp', alt: 'The "Terms of installation" section of the HALCYON SOMATICS page', caption: 'The terms of installation nobody reads.' },
+      { type: 'video', src: 'screen.mp4', poster: 'screen-poster.webp', alt: 'A short film of the HALCYON SOMATICS page starting up, then the 3D body from the top of this chapter turning slowly', caption: "The page's start-up sequence, then the 3D body from the top of this chapter" },
+      { type: 'image', src: 'shot-hero.webp', alt: 'The HALCYON SOMATICS homepage: a wireframe body with callouts beside the headline "Perfection, installed."', caption: 'The hero: a wireframe body, callouts and a headline that decrypts itself' },
+      { type: 'image', src: 'shot-seraph.webp', alt: 'The SERAPH-9 implant spec plate on the HALCYON SOMATICS page', caption: 'SERAPH-9, the flagship implant, with its spec plate' },
+      { type: 'image', src: 'shot-terms.webp', alt: 'The "Terms of installation" section of the HALCYON SOMATICS page', caption: 'The terms of installation nobody reads' },
     ],
     links: [{ label: 'Visit the live page', href: '/halcyon/' }],
   },
@@ -66,8 +66,8 @@ export const projects = [
     },
     media: [
       { type: 'model', src: 'pi-assembly.glb', poster: 'model-poster.webp', alt: 'A 3D model of the Pi 5 build: the case, the Raspberry Pi 5, the AI HAT+ on its spacers, and Camera Module 3 in its printed mount', caption: 'The whole build in 3D. Drag to turn it, and point at a part in the list to find it.' },
-      { type: 'video', src: 'demo.mp4', poster: 'demo-poster.webp', alt: 'A screen recording of the Windows demo: a figure drawn in neon ASCII characters walks along a rainy cyberpunk street at night', caption: 'The Windows demo Claude Code wrote: a figure that follows the mouse, drawn as neon ASCII over a cyberpunk city.' },
-      { type: 'image', src: 'cover.webp', alt: 'A person mid-stride, drawn in green ASCII characters on a black background', caption: 'The look: brightness becomes characters, from dots up to @ signs.' },
+      { type: 'video', src: 'demo.mp4', poster: 'demo-poster.webp', alt: 'A screen recording of the Windows demo: a figure drawn in neon ASCII characters walks along a rainy cyberpunk street at night', caption: 'The Windows demo Claude Code wrote: a figure that follows the mouse, drawn as neon ASCII over a cyberpunk city' },
+      { type: 'image', src: 'cover.webp', alt: 'A person mid-stride, drawn in green ASCII characters on a black background', caption: 'The look: brightness becomes characters, from dots up to @ signs' },
     ],
   },
   {
@@ -88,7 +88,7 @@ export const projects = [
     },
     media: [
       { type: 'code', src: 'boot.py', lines: [106, 283], live: true, caption: 'The seven effects in boot.py. While the show plays, the line it’s running lights up.' },
-      { type: 'image', src: 'cover.webp', alt: 'An illustration of twenty LEDs in a row with a rainbow comet trail', caption: 'An illustration of the strip mid-comet.' },
+      { type: 'image', src: 'cover.webp', alt: 'An illustration of twenty LEDs in a row with a rainbow comet trail', caption: 'An illustration of the strip mid-comet' },
     ],
   },
   {
@@ -109,9 +109,9 @@ export const projects = [
       inside: 'Big Shoulders Display Black type, a 1543 Vesalius plate (Fig. 165), a procedural worn-ink texture and 9 separate layers, laid out for a black shirt.',
     },
     media: [
-      { type: 'image', src: 'on-black.webp', alt: 'The DEAD TIRED design on a black T-shirt', caption: 'The design on a black shirt.' },
-      { type: 'image', src: 'mockup.webp', alt: 'A mockup of a T-shirt printed with the DEAD TIRED design', caption: 'Tee mockup.' },
-      { type: 'image', src: 'alt-stump.webp', alt: 'An alternative version of the DEAD TIRED design that keeps the stump', caption: 'The alternative version, with the stump left in.' },
+      { type: 'image', src: 'on-black.webp', alt: 'The DEAD TIRED design on a black T-shirt', caption: 'The design on a black shirt' },
+      { type: 'image', src: 'mockup.webp', alt: 'A mockup of a T-shirt printed with the DEAD TIRED design', caption: 'Tee mockup' },
+      { type: 'image', src: 'alt-stump.webp', alt: 'An alternative version of the DEAD TIRED design that keeps the stump', caption: 'The alternative version, with the stump left in' },
     ],
   },
 ];

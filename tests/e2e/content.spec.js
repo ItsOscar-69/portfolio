@@ -41,10 +41,13 @@ test('the HALCYON write-up has no big link tile, and its live-page link is a pil
   expect(style.underline).toBe('none');
 });
 
-test('card labels use the small spaced mono capitals of the intro top line', async ({ page }) => {
+test('small labels are mono in their own casing, never forced to wide-spaced capitals', async ({ page }) => {
   await page.goto('./?posters');
-  const label = await page.locator('.card h4').first().evaluate((h) => { const s = getComputedStyle(h); return { transform: s.textTransform, family: s.fontFamily, size: parseFloat(s.fontSize) }; });
-  expect(label.transform).toBe('uppercase');
-  expect(label.family).toMatch(/JetBrains Mono/);
-  expect(label.size).toBeLessThanOrEqual(12);
+  for (const sel of ['.chapter__meta', '.scene__frame .badge', '.card h4', '.mirror__on']) {
+    const label = await page.locator(sel).first().evaluate((el) => { const s = getComputedStyle(el); return { transform: s.textTransform, family: s.fontFamily, size: parseFloat(s.fontSize), tracking: parseFloat(s.letterSpacing) || 0 }; });
+    expect([sel, label.transform]).toEqual([sel, 'none']);
+    expect(label.family).toMatch(/JetBrains Mono/);
+    expect(label.size).toBeLessThanOrEqual(12);
+    expect(label.tracking).toBeLessThanOrEqual(0.05 * label.size); // at most slightly open
+  }
 });
