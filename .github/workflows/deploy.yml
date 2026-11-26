@@ -1,4 +1,6 @@
-name: Deploy to GitHub Pages
+# Every push to main runs the checks and the build. The Pages deploy job runs
+# only when the workflow is started by hand (Actions → Run workflow).
+name: Check and build
 on:
   push:
     branches: [main]
@@ -30,6 +32,7 @@ jobs:
         with:
           path: dist
   deploy:
+    if: github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
     environment:

@@ -1,6 +1,6 @@
 # Portfolio: notes for Claude Code
 
-Oscar's public portfolio of projects built with Claude Code. It goes live at https://itsoscar-69.github.io/ once published.
+Oscar's public portfolio of projects built with Claude Code. The code is public at https://github.com/ItsOscar-69/portfolio. The site itself isn't hosted yet (see Publishing).
 
 ## Rules (this repo is public)
 
@@ -77,8 +77,8 @@ If `create` throws, or `update` throws, that chapter falls back to its poster an
 
 ## Publishing
 
-- Every push to `main` runs `.github/workflows/deploy.yml`: `npm ci`, `npm run check`, `npm run check:media`, `npm test`, `npm run build`, then GitHub Pages. The actions are pinned to commit SHAs; update them on purpose, with the tag in the comment.
-- The repo's Settings → Pages → Source must be "GitHub Actions".
+- Every push to `main` runs `.github/workflows/deploy.yml`: `npm ci`, `npm run check`, `npm run check:media`, `npm test`, `npm run build`. Its GitHub Pages deploy job runs only when the workflow is started by hand (Actions → Run workflow), so a push never publishes a site. The actions are pinned to commit SHAs; update them on purpose, with the tag in the comment.
+- Before deploying by hand: set the repo's Settings → Pages → Source to "GitHub Actions", and set `BASE` in `site.config.js` to `'/portfolio/'`, because this repo's site would be served at https://itsoscar-69.github.io/portfolio/.
 - Before any push, run `npm run check:history`. A push publishes every past commit, not just the current files.
 - Check the live site with `PW_BASE_URL=https://itsoscar-69.github.io/ npx playwright test tests/e2e/site.spec.js tests/e2e/halcyon.spec.js`.
 

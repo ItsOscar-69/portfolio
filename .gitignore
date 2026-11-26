@@ -8,3 +8,26 @@ playwright-report/
 screens/
 .superpowers/
 *.log
+
+# Local-only config and secrets (this repo is public)
+*.local.json
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+secrets.*
+credentials*.json
+.claude/settings.local.json
+
+# Build and tool output
+build/
+__pycache__/
+.venv/
+venv/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
