@@ -1,4 +1,5 @@
-import { it, expect, afterEach } from 'vitest';
+import { it, expect, afterEach, vi } from 'vitest';
+vi.setConfig({ testTimeout: 30_000 }); // many git processes; slow on Windows, so 5 s is too tight
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

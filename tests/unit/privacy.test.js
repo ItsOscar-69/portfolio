@@ -1,6 +1,7 @@
 // Guards the public repo: tracked files and commit messages must never contain the words in
 // privacy.local.json (gitignored). Skipped where that file doesn't exist (e.g. CI).
-import { it, expect } from 'vitest';
+import { it, expect, vi } from 'vitest';
+vi.setConfig({ testTimeout: 30_000 }); // many git processes; slow on Windows, so 5 s is too tight
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 
