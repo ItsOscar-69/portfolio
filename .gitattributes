@@ -1,0 +1,2 @@
+# The LED fixture records a hash of boot.py's bytes, so keep it LF on every checkout (Windows included).
+public/projects/pico-light-show/boot.py text eol=lf
